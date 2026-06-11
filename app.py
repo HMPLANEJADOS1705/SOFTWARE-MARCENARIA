@@ -20,29 +20,35 @@ elif menu == "Importar CSV":
     
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
+        # Mostra as colunas encontradas para você conferir
+        st.write("Colunas encontradas no arquivo:", df.columns.tolist())
         
-        # Limpeza: remove o "mm" das colunas para poder calcular
-        df['Width(W)'] = df['Width(W)'].replace(r' mm', '', regex=True).astype(float)
-        df['Length(L)'] = df['Length(L)'].replace(r' mm', '', regex=True).astype(float)
+        # Ajuste: verifique se os nomes batem exatamente com o que está na lista acima
+        # Se o nome for 'Width(W) ', ' Width(W)', ou algo parecido, você precisará ajustar aqui
+        col_largura = 'Width(W)'
+        col_comprimento = 'Length(L)'
+        col_qtde = 'Copies'
         
-        st.write("Dados importados:")
-        st.dataframe(df)
-        
-        if 'materiais' in st.session_state and st.session_state.materiais:
-            lista_nomes = [m['nome'] for m in st.session_state.materiais]
-            material_escolhido = st.selectbox("Selecione o material para este projeto:", lista_nomes)
+        if col_largura in df.columns and col_comprimento in df.columns:
+            # Limpeza segura
+            df[col_largura] = df[col_largura].replace(r' mm', '', regex=True).astype(float)
+            df[col_comprimento] = df[col_comprimento].replace(r' mm', '', regex=True).astype(float)
             
-            if st.button("Calcular Orçamento"):
-                # Busca os dados do material escolhido
-                mat_dados = next(m for m in st.session_state.materiais if m['nome'] == material_escolhido)
-                preco_venda = (mat_dados['preco']) * (1 + mat_dados['markup']/100)
+            st.dataframe(df)
+            
+            if 'materiais' in st.session_state and st.session_state.materiais:
+                lista_nomes = [m['nome'] for m in st.session_state.materiais]
+                material_escolhido = st.selectbox("Selecione o material:", lista_nomes)
                 
-                # Cálculo: (Largura * Comprimento * Copias) / 1.000.000 (para converter mm² para m²)
-                df['Area_m2'] = (df['Width(W)'] * df['Length(L)'] * df['Copies']) / 1_000_000
-                total_projeto = df['Area_m2'].sum() * preco_venda
-                
-                st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
-                st.write("Detalhamento por peça:", df[['Description', 'Area_m2']])
+                if st.button("Calcular Orçamento"):
+                    mat_dados = next(m for m in st.session_state.materiais if m['nome'] == material_escolhido)
+                    preco_venda = (mat_dados['preco']) * (1 + mat_dados['markup']/100)
+                    
+                    df['Area_m2'] = (df[col_largura] * df[col_comprimento] * df[col_qtde]) / 1_000_000
+                    total_projeto = df['Area_m2'].sum() * preco_venda
+                    st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
+        else:
+            st.error("Erro: As colunas de medidas não foram encontradas. Verifique o nome delas na lista acima.")
         # Aqui entra a lógica de mapeamento manual que discutimos
 
 elif menu == "Cadastro de Materiais":
