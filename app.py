@@ -6,7 +6,6 @@ st.set_page_config(page_title="Gestão de Marcenaria", layout="wide")
 
 st.title("🪚 Software de Gestão de Marcenaria")
 
-# Sidebar para Navegação
 menu = st.sidebar.selectbox("Menu", ["Dashboard", "Importar CSV", "Cadastro de Materiais"])
 
 if menu == "Dashboard":
@@ -14,64 +13,44 @@ if menu == "Dashboard":
     st.metric("Total do Projeto", "R$ 0,00")
 
 elif menu == "Importar CSV":
-    st.subheader("Importar Lista do SketchUp")
-    uploaded_file = st.file_uploader("Arraste seu arquivo CSV aqui", type="csv")
+    st.subheader("Importar e Corrigir Lista")
+    uploaded_file = st.file_uploader("Arraste seu arquivo CSV", type="csv")
     
     if uploaded_file:
         df = pd.read_csv(uploaded_file, sep=';')
         
-        # Limpeza das colunas
-        df['Width(W)'] = df['Width(W)'].replace(r' mm', '', regex=True).astype(float)
-        df['Length(L)'] = df['Length(L)'].replace(r' mm', '', regex=True).astype(float)
+        # Correção Manual de Espessura
+        st.write("Ajuste as espessuras se necessário (ex: 7mm para 6mm):")
+        df_editado = st.data_editor(df) 
+        
+        # Limpeza
+        df_editado['Width(W)'] = df_editado['Width(W)'].replace(r' mm', '', regex=True).astype(float)
+        df_editado['Length(L)'] = df_editado['Length(L)'].replace(r' mm', '', regex=True).astype(float)
         
         if 'materiais' in st.session_state and st.session_state.materiais:
-            # Função para buscar preço baseado na espessura
-            def calcular_custo_linha(row):
-                espessura_peça = str(row['Thickness(T)']).strip()
-                # Procura no cadastro de materiais algum que contenha a espessura no nome
+            def calcular_custo(row):
+                espessura = str(row['Thickness(T)']).strip()
                 for mat in st.session_state.materiais:
-                    if espessura_peça in mat['nome']:
-                        preco_venda = mat['preco'] * (1 + mat['markup']/100)
+                    if espessura in mat['nome']:
+                        preco = mat['preco'] * (1 + mat['markup']/100)
                         area = (row['Width(W)'] * row['Length(L)'] * row['Copies']) / 1_000_000
-                        return area * preco_venda
-                return 0 # Se não achar o material, retorna 0
+                        return area * preco
+                return 0
             
-            if st.button("Calcular Orçamento por Espessura"):
-                df['Custo_Total'] = df.apply(calcular_custo_linha, axis=1)
-                total = df['Custo_Total'].sum()
-                st.metric("Valor Total do Projeto", f"R$ {total:,.2f}")
-                st.write(df[['Description', 'Thickness(T)', 'Custo_Total']])
-        else:
-            st.warning("Cadastre os materiais com os nomes contendo a espessura (ex: 'MDF 15mm')")
-            
-            if 'materiais' in st.session_state and st.session_state.materiais:
-                lista_nomes = [m['nome'] for m in st.session_state.materiais]
-                material_escolhido = st.selectbox("Selecione o material:", lista_nomes)
-                
-                if st.button("Calcular Orçamento"):
-                    mat_dados = next(m for m in st.session_state.materiais if m['nome'] == material_escolhido)
-                    preco_venda = (mat_dados['preco']) * (1 + mat_dados['markup']/100)
-                    
-                    df['Area_m2'] = (df[col_largura] * df[col_comprimento] * df[col_qtde]) / 1_000_000
-                    df['Custo_Total'] = df['Area_m2'] * preco_venda
-                    total_projeto = df['Custo_Total'].sum()
-                    
-                    st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
-                    st.write("Detalhamento por peça:", df[['Description', 'Area_m2', 'Custo_Total']])
-        else:
-            st.error("Erro: As colunas de medidas não foram encontradas.")
+            if st.button("Calcular Orçamento Final"):
+                df_editado['Custo_Total'] = df_editado.apply(calcular_custo, axis=1)
+                st.metric("Valor Total", f"R$ {df_editado['Custo_Total'].sum():,.2f}")
+                st.dataframe(df_editado)
 
 elif menu == "Cadastro de Materiais":
     st.subheader("Cadastro de Materiais")
-    if 'materiais' not in st.session_state:
-        st.session_state.materiais = []
-        
-    with st.form("form_material"):
-        nome = st.text_input("Nome do Material")
+    if 'materiais' not in st.session_state: st.session_state.materiais = []
+    
+    with st.form("form_mat"):
+        nome = st.text_input("Nome (ex: MDF 6mm)")
         preco = st.number_input("Preço de Custo (R$)", min_value=0.0)
-        markup = st.slider("Markup de Lucro (%)", 0, 100, 30)
-        submitted = st.form_submit_button("Salvar Material")
-        if submitted and nome:
+        markup = st.slider("Markup (%)", 0, 100, 30)
+        if st.form_submit_button("Salvar"):
             st.session_state.materiais.append({"nome": nome, "preco": preco, "markup": markup})
             st.rerun()
 
