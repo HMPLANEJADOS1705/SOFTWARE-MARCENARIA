@@ -20,24 +20,29 @@ elif menu == "Importar CSV":
     
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
+        
+        # Limpeza: remove o "mm" das colunas para poder calcular
+        df['Width(W)'] = df['Width(W)'].replace(r' mm', '', regex=True).astype(float)
+        df['Length(L)'] = df['Length(L)'].replace(r' mm', '', regex=True).astype(float)
+        
         st.write("Dados importados:")
         st.dataframe(df)
         
         if 'materiais' in st.session_state and st.session_state.materiais:
-            st.write("---")
-            st.subheader("Atribuição de Materiais")
-            
-            # Pega a lista de nomes cadastrados
             lista_nomes = [m['nome'] for m in st.session_state.materiais]
-            
-            # Cria um seletor para você escolher o material para o projeto todo
             material_escolhido = st.selectbox("Selecione o material para este projeto:", lista_nomes)
             
             if st.button("Calcular Orçamento"):
-                st.success(f"Projeto configurado com: {material_escolhido}")
-                # Aqui entraremos com a fórmula de cálculo nas próximas linhas
-        else:
-            st.warning("Cadastre materiais no menu 'Cadastro de Materiais' primeiro!")
+                # Busca os dados do material escolhido
+                mat_dados = next(m for m in st.session_state.materiais if m['nome'] == material_escolhido)
+                preco_venda = (mat_dados['preco']) * (1 + mat_dados['markup']/100)
+                
+                # Cálculo: (Largura * Comprimento * Copias) / 1.000.000 (para converter mm² para m²)
+                df['Area_m2'] = (df['Width(W)'] * df['Length(L)'] * df['Copies']) / 1_000_000
+                total_projeto = df['Area_m2'].sum() * preco_venda
+                
+                st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
+                st.write("Detalhamento por peça:", df[['Description', 'Area_m2']])
         # Aqui entra a lógica de mapeamento manual que discutimos
 
 elif menu == "Cadastro de Materiais":
