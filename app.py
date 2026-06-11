@@ -39,13 +39,26 @@ elif menu == "Importar CSV":
                 lista_nomes = [m['nome'] for m in st.session_state.materiais]
                 material_escolhido = st.selectbox("Selecione o material:", lista_nomes)
                 
-                if st.button("Calcular Orçamento"):
+               if st.button("Calcular Orçamento"):
+                    # Busca os dados do material escolhido
                     mat_dados = next(m for m in st.session_state.materiais if m['nome'] == material_escolhido)
+                    
+                    # Cálculo do preço de venda unitário
                     preco_venda = (mat_dados['preco']) * (1 + mat_dados['markup']/100)
                     
+                    # Cálculo da área de cada peça em m²
                     df['Area_m2'] = (df[col_largura] * df[col_comprimento] * df[col_qtde]) / 1_000_000
-                    total_projeto = df['Area_m2'].sum() * preco_venda
+                    
+                    # Custo de cada peça individualmente
+                    df['Custo_Total'] = df['Area_m2'] * preco_venda
+                    
+                    # Soma de tudo
+                    total_projeto = df['Custo_Total'].sum()
+                    
+                    # Exibe o resultado
                     st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
+                    st.write("Detalhamento por peça:")
+                    st.dataframe(df[['Description', 'Area_m2', 'Custo_Total']])
         else:
             st.error("Erro: As colunas de medidas não foram encontradas. Verifique se o nome está idêntico ao da lista acima.")
         # Aqui entra a lógica de mapeamento manual que discutimos
