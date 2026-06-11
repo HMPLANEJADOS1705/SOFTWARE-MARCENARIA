@@ -17,9 +17,27 @@ if menu == "Dashboard":
 elif menu == "Importar CSV":
     st.subheader("Importar Lista do SketchUp")
     uploaded_file = st.file_uploader("Arraste seu arquivo CSV aqui", type="csv")
+    
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
-        st.write("Dados importados:", df.head())
+        st.write("Dados importados:")
+        st.dataframe(df)
+        
+        if 'materiais' in st.session_state and st.session_state.materiais:
+            st.write("---")
+            st.subheader("Atribuição de Materiais")
+            
+            # Pega a lista de nomes cadastrados
+            lista_nomes = [m['nome'] for m in st.session_state.materiais]
+            
+            # Cria um seletor para você escolher o material para o projeto todo
+            material_escolhido = st.selectbox("Selecione o material para este projeto:", lista_nomes)
+            
+            if st.button("Calcular Orçamento"):
+                st.success(f"Projeto configurado com: {material_escolhido}")
+                # Aqui entraremos com a fórmula de cálculo nas próximas linhas
+        else:
+            st.warning("Cadastre materiais no menu 'Cadastro de Materiais' primeiro!")
         # Aqui entra a lógica de mapeamento manual que discutimos
 
 elif menu == "Cadastro de Materiais":
