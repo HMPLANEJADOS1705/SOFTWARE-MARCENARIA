@@ -24,7 +24,10 @@ elif menu == "Importar CSV":
 
 elif menu == "Cadastro de Materiais":
     st.subheader("Cadastro de Materiais")
-    
+    # Botão para limpar a lista
+    if st.button("Limpar todos os materiais"):
+        st.session_state.materiais = []
+        st.rerun() # Isso força a página a recarregar e limpar a tela
     # Inicializa a lista de materiais se não existir
     if 'materiais' not in st.session_state:
         st.session_state.materiais = []
