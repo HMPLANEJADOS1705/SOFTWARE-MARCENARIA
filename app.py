@@ -23,9 +23,26 @@ elif menu == "Importar CSV":
         # Aqui entra a lógica de mapeamento manual que discutimos
 
 elif menu == "Cadastro de Materiais":
-    st.subheader("Cadastro de Chapas e Insumos")
-    nome = st.text_input("Nome do Material")
-    preco = st.number_input("Preço de Custo (R$)", min_value=0.0)
-    markup = st.slider("Markup de Lucro (%)", 0, 100, 30)
-    if st.button("Salvar Material"):
-        st.success(f"Material {nome} cadastrado com markup de {markup}%!")
+    st.subheader("Cadastro de Materiais")
+    
+    # Inicializa a lista de materiais se não existir
+    if 'materiais' not in st.session_state:
+        st.session_state.materiais = []
+
+    with st.form("form_material"):
+        nome = st.text_input("Nome do Material (ex: MDF 15mm)")
+        preco = st.number_input("Preço de Custo (R$)", min_value=0.0)
+        markup = st.slider("Markup de Lucro (%)", 0, 100, 30)
+        submitted = st.form_submit_button("Salvar Material")
+        
+        if submitted and nome:
+            novo_mat = {"nome": nome, "preco": preco, "markup": markup}
+            st.session_state.materiais.append(novo_mat)
+            st.success(f"Material {nome} salvo com sucesso!")
+
+    # Exibe a lista cadastrada
+    if st.session_state.materiais:
+        st.write("Materiais cadastrados:")
+        df_mat = pd.DataFrame(st.session_state.materiais)
+        st.table(df_mat)
+        
