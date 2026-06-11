@@ -19,17 +19,30 @@ elif menu == "Importar CSV":
     
     if uploaded_file:
         df = pd.read_csv(uploaded_file, sep=';')
-        st.write("Colunas encontradas:", df.columns.tolist())
         
-        col_largura = 'Width(W)'
-        col_comprimento = 'Length(L)'
-        col_qtde = 'Copies'
+        # Limpeza das colunas
+        df['Width(W)'] = df['Width(W)'].replace(r' mm', '', regex=True).astype(float)
+        df['Length(L)'] = df['Length(L)'].replace(r' mm', '', regex=True).astype(float)
         
-        if col_largura in df.columns and col_comprimento in df.columns:
-            df[col_largura] = df[col_largura].replace(r' mm', '', regex=True).astype(float)
-            df[col_comprimento] = df[col_comprimento].replace(r' mm', '', regex=True).astype(float)
+        if 'materiais' in st.session_state and st.session_state.materiais:
+            # Função para buscar preço baseado na espessura
+            def calcular_custo_linha(row):
+                espessura_peça = str(row['Thickness(T)']).strip()
+                # Procura no cadastro de materiais algum que contenha a espessura no nome
+                for mat in st.session_state.materiais:
+                    if espessura_peça in mat['nome']:
+                        preco_venda = mat['preco'] * (1 + mat['markup']/100)
+                        area = (row['Width(W)'] * row['Length(L)'] * row['Copies']) / 1_000_000
+                        return area * preco_venda
+                return 0 # Se não achar o material, retorna 0
             
-            st.dataframe(df)
+            if st.button("Calcular Orçamento por Espessura"):
+                df['Custo_Total'] = df.apply(calcular_custo_linha, axis=1)
+                total = df['Custo_Total'].sum()
+                st.metric("Valor Total do Projeto", f"R$ {total:,.2f}")
+                st.write(df[['Description', 'Thickness(T)', 'Custo_Total']])
+        else:
+            st.warning("Cadastre os materiais com os nomes contendo a espessura (ex: 'MDF 15mm')")
             
             if 'materiais' in st.session_state and st.session_state.materiais:
                 lista_nomes = [m['nome'] for m in st.session_state.materiais]
