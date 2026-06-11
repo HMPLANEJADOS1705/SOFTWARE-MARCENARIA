@@ -19,18 +19,17 @@ elif menu == "Importar CSV":
     uploaded_file = st.file_uploader("Arraste seu arquivo CSV aqui", type="csv")
     
     if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        # Mostra as colunas encontradas para você conferir
-        st.write("Colunas encontradas no arquivo:", df.columns.tolist())
+        # Adicionamos sep=';' para ele entender o seu arquivo
+        df = pd.read_csv(uploaded_file, sep=';')
         
-        # Ajuste: verifique se os nomes batem exatamente com o que está na lista acima
-        # Se o nome for 'Width(W) ', ' Width(W)', ou algo parecido, você precisará ajustar aqui
+        st.write("Colunas encontradas:", df.columns.tolist())
+        
         col_largura = 'Width(W)'
         col_comprimento = 'Length(L)'
         col_qtde = 'Copies'
         
         if col_largura in df.columns and col_comprimento in df.columns:
-            # Limpeza segura
+            # Limpeza
             df[col_largura] = df[col_largura].replace(r' mm', '', regex=True).astype(float)
             df[col_comprimento] = df[col_comprimento].replace(r' mm', '', regex=True).astype(float)
             
@@ -48,7 +47,7 @@ elif menu == "Importar CSV":
                     total_projeto = df['Area_m2'].sum() * preco_venda
                     st.metric("Valor Total do Projeto", f"R$ {total_projeto:,.2f}")
         else:
-            st.error("Erro: As colunas de medidas não foram encontradas. Verifique o nome delas na lista acima.")
+            st.error("Erro: As colunas de medidas não foram encontradas. Verifique se o nome está idêntico ao da lista acima.")
         # Aqui entra a lógica de mapeamento manual que discutimos
 
 elif menu == "Cadastro de Materiais":
