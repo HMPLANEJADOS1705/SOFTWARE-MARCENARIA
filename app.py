@@ -54,3 +54,4 @@ with aba2:
             
             st.metric("Total do Projeto", f"R$ {total:,.2f}")
             st.table(pd.DataFrame(detalhes))
+
