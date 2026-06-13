@@ -45,6 +45,40 @@ with col_grafico:
     st.bar_chart(custos)
 
 # Ação Final
-if st.button("GERAR PROPOSTA PDF (Sr. Ricardo)"):
-    st.success("Proposta gerada com sucesso! (Simulação)")
-    st.balloons()
+from fpdf import FPDF
+import io
+
+def gerar_pdf_proposta(dados_projeto):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    
+    # Cabeçalho
+    pdf.cell(200, 10, txt="PROPOSTA COMERCIAL - MARCENARIA 4.0", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Conteúdo (Exemplo)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Cliente: Sr. Ricardo", ln=True)
+    pdf.cell(200, 10, txt=f"Valor Total: R$ 2.550,00", ln=True)
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, txt="Esta proposta inclui material, ferragens e mão de obra detalhados no projeto.")
+    
+    # Retorna o PDF como bytes para o Streamlit
+    return pdf.output()
+
+# --- No seu código Streamlit ---
+pdf_bytes = gerar_pdf_proposta(None) # Aqui passaremos os dados reais depois
+
+st.download_button(
+    label="📄 Baixar Proposta em PDF",
+    data=bytes(pdf_bytes),
+    file_name="proposta_ricardo.pdf",
+    mime="application/pdf"
+)
+
+**O que faremos a seguir?**
+1. Você consegue rodar essa parte do PDF?
+2. Depois disso, posso te mandar a lógica para a **Lista de Corte** e o início do desenho do **Mapa de Chapa** (aquele desenho estilo Maxcut).
+
+Qual dessas funções quer que eu detalhe o código agora?
