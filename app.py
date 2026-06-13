@@ -40,20 +40,21 @@ with tab2:
             st.subheader(f"Material: {espessura}")
             pecas_espessura = df[df['Thickness(T)'] == espessura]
             
-            if st.button(f"Otimizar Chapas para {espessura}"):
-                # Inicializa o Packer com rotação permitida
-                packer = newPacker(rotation=True)
+          if st.button(f"Otimizar Chapas para {espessura}"):
+                # 1. Filtra E RESETA O ÍNDICE para garantir que comecem em 0
+                pecas_espessura = df[df['Thickness(T)'] == espessura].reset_index(drop=True)
                 
-                # Adiciona 5 chapas como reservatório
+                packer = newPacker(rotation=True)
                 for _ in range(5): 
                     packer.add_bin(2750, 1840)
                 
-                # Adiciona as peças
+                # 2. Agora o rid (0, 1, 2...) casa com o .iloc do dataframe resetado
                 for i, row in pecas_espessura.iterrows():
                     packer.add_rect(row['Width_num'], row['Length_num'], rid=i)
                 
                 packer.pack()
                 
+                # ... (o restante do código de desenho permanece igual)
                 # --- LINHAS DE TESTE PARA DIAGNÓSTICO ---
                 st.write(f"Total de peças nesta espessura: {len(pecas_espessura)}")
                 st.write(f"Peças encaixadas pelo algoritmo: {len(packer.rect_list())}")
