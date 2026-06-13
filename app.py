@@ -59,12 +59,16 @@ with tab2:
                         fig, ax = plt.subplots(figsize=(8, 4))
                         ax.add_patch(patches.Rectangle((0, 0), 2750, 1840, fill=False, edgecolor='black', linewidth=3))
                         
+                       # Substitua o loop do desenho por este:
                         for rect in bin.rect_list():
-                            x, y, w, h, rid = rect.x, rect.y, rect.width, rect.height, rect.rid
+                            # Usamos os índices da tupla em vez de propriedades de objeto,
+                            # que é mais compatível entre versões do rectpack
+                            x, y = rect.x, rect.y
+                            w, h = rect.width, rect.height
+                            rid = rect.rid
+                            
                             ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='blue', facecolor='skyblue', alpha=0.6))
-                            ax.text(x+w/2, y+h/2, str(pecas_espessura.iloc[rect.rid]['Description']), ha='center', va='center', fontsize=6)
-                        
-                        ax.set_xlim(0, 2750)
-                        ax.set_ylim(0, 1840)
-                        st.pyplot(fig)
+                            # Adicionando o nome da peça usando o índice recuperado
+                            nome_peca = pecas_espessura.iloc[rid]['Description']
+                            ax.text(x+w/2, y+h/2, str(nome_peca), ha='center', va='center', fontsize=6)
 
