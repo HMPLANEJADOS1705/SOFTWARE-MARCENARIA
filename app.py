@@ -21,8 +21,24 @@ if menu == "Mapa de Corte":
     # ... (Seu código de Mapa de Corte que já estava funcionando bem) ...
     st.info("Aqui permanece sua lógica de otimização de chapas.")
 
-elif menu == "Cadastro de Insumos":
-    st.header("📦 Cadastro de Insumos")
+elif menu == "Orçamentos":
+    st.header("💰 Gerador de Orçamentos")
+    
+    if st.session_state.df is not None and not st.session_state.estoque.empty:
+        # Modo de cálculo
+        modo_calculo = st.radio("Selecione o modo de cálculo:", ["Por Chapa Inteira", "Por Área Utilizada (m²)"])
+        
+        if st.button("Calcular Projeto"):
+            df_pecas = st.session_state.df
+            df_estoque = st.session_state.estoque
+            
+            st.subheader("Resumo do Orçamento")
+            # Aqui vamos cruzar o df_pecas com o df_estoque
+            # Vamos exibir uma tabela com: Material | Qtd | Preço Estimado
+            st.write("Cálculo em processamento...")
+            # (Vou finalizar essa lógica de cruzamento de dados com você no próximo passo)
+    else:
+        st.warning("Certifique-se de ter carregado o CSV na aba 'Mapa de Corte' e preenchido o cadastro de insumos.")
     
     # Garantir que os dados persistam mesmo após recarregar a página
     if 'estoque' not in st.session_state:
