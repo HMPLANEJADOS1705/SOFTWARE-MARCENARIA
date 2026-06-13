@@ -40,39 +40,23 @@ with tab2:
             st.subheader(f"Material: {espessura}")
             pecas_espessura = df[df['Thickness(T)'] == espessura]
             
-            if st.button(f"Otimizar Chapas para {espessura}"):
-                # 2. Configurar o Packer para múltiplas chapas
-                packer = newPacker(rotation=True) # rotation=True ajuda muito no aproveitamento!
-                
-                # Adiciona várias chapas vazias (ex: 5 chapas)
+          # Dentro do loop de espessuras
+        if st.button(f"Otimizar Chapas para {espessura}"):
+            container_resultado = st.container() # Cria uma área dedicada ao resultado
+            
+            with container_resultado:
+                packer = newPacker(rotation=True)
                 for _ in range(5): 
                     packer.add_bin(2750, 1840)
                 
-                for i, row in pecas_espessura.iterrows():
-                    packer.add_rect(row['Width_num'], row['Length_num'], rid=i)
+                # ... (seu código de packer.add_rect e packer.pack continua igual) ...
                 
                 packer.pack()
                 
-                # 3. Desenhar cada chapa individualmente
-                for bin in packer:
+                # Exibe cada chapa dentro do container
+                for i, bin in enumerate(packer):
                     if len(bin.rect_list()) > 0:
+                        st.write(f"### Chapa {i+1}")
                         fig, ax = plt.subplots(figsize=(8, 4))
-                        ax.add_patch(patches.Rectangle((0, 0), 2750, 1840, fill=False, edgecolor='black', linewidth=3))
-                        
-                      # Substitua o loop for rect in bin.rect_list(): por este abaixo:
-                        for rect in bin:
-                            # Tentamos acessar os atributos. Se o rectpack for uma versão 
-                            # que trata como objeto, .x, .y, .width, .height funcionarão.
-                            try:
-                                x, y, w, h = rect.x, rect.y, rect.width, rect.height
-                            except AttributeError:
-                                # Caso a versão trate como tupla/lista indexada
-                                x, y, w, h = rect[0], rect[1], rect[2], rect[3]
-                            
-                            rid = rect.rid
-                            
-                            ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='blue', facecolor='skyblue', alpha=0.6))
-                            
-                            # Recupera o nome da peça com segurança
-                            nome_peca = pecas_espessura.iloc[rid]['Description'] if rid < len(pecas_espessura) else "Peça"
-                            ax.text(x+w/2, y+h/2, str(nome_peca), ha='center', va='center', fontsize=6)
+                        # ... (seu código de desenho continua aqui) ...
+                        st.pyplot(fig) # Agora o pyplot sabe onde desenhar
