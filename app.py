@@ -43,31 +43,39 @@ with tab2:
         else:
             st.error("Ainda não encontrei as colunas. Verifique se os nomes batem exatamente com a lista acima.")
         
-       # 2. Botão para desenhar
-        if st.button("Gerar Mapa de Corte da Chapa"):
-            try:
-                # Limpeza: remove ' mm' e transforma em número
-                df['Width_num'] = df['Width(W)'].astype(str).str.replace(' mm', '').astype(float)
-                df['Length_num'] = df['Length(L)'].astype(str).str.replace(' mm', '').astype(float)
-                
-                st.info("Desenhando peças na chapa...")
-                
-                fig, ax = plt.subplots(figsize=(10, 6))
-                
-                # Desenha a borda da chapa (2750 x 1840)
-                chapa = patches.Rectangle((0, 0), 2750, 1840, facecolor='#f0f0f0', edgecolor='black', linewidth=2)
-                ax.add_patch(chapa)
-                
-                # Desenha a primeira peça da lista
-                peca = patches.Rectangle((50, 50), df['Width_num'].iloc[0], df['Length_num'].iloc[0], 
-                                         facecolor='skyblue', edgecolor='blue')
-                ax.add_patch(peca)
-                
-                ax.set_xlim(0, 3000)
-                ax.set_ylim(0, 2000)
-                ax.set_title("Simulação: Primeira peça na Chapa")
-                
-                st.pyplot(fig)
-            except Exception as e:
-                st.error(f"Erro ao gerar desenho: {e}")
+      from rectpack import newPacker
+
+# --- LÓGICA DO ALGORITMO DE ENCAIXE ---
+if st.button("Gerar Mapa de Corte (Automático)"):
+    # 1. Configura o "empacotador"
+    packer = newPacker()
+    
+    # 2. Adiciona a chapa (Bin)
+    packer.add_bin(2750, 1840)
+    
+    # 3. Adiciona todas as peças do CSV
+    for i, row in df.iterrows():
+        # Largura e comprimento do CSV
+        w = float(row['Width_num'])
+        l = float(row['Length_num'])
+        packer.add_rect(w, l, rid=i)
+    
+    # 4. Processa o encaixe
+    packer.pack()
+    
+    # 5. Desenha o resultado
+    fig, ax = plt.subplots(figsize=(10, 6))
+    chapa = patches.Rectangle((0, 0), 2750, 1840, facecolor='#f0f0f0', edgecolor='black', linewidth=2)
+    ax.add_patch(chapa)
+    
+    # Desenha cada peça na sua posição calculada
+    for rect in packer.rect_list():
+        b, x, y, w, h, rid = rect
+        peca = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor='blue', facecolor='skyblue', alpha=0.7)
+        ax.add_patch(peca)
+        ax.text(x+w/2, y+h/2, str(df.iloc[rid]['Description']), ha='center', va='center', fontsize=8)
+    
+    ax.set_xlim(0, 2750)
+    ax.set_ylim(0, 1840)
+    st.pyplot(fig)
 
