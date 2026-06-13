@@ -29,34 +29,56 @@ with tab2:
     
     if arquivo_csv is not None:
         df = pd.read_csv(arquivo_csv, sep=';')
-        # Limpeza básica (ajuste os nomes conforme necessário)
+        # Limpeza dos dados
         df['Width_num'] = df['Width(W)'].astype(str).str.replace(' mm', '').astype(float)
         df['Length_num'] = df['Length(L)'].astype(str).str.replace(' mm', '').astype(float)
         
-        # 1. Agrupar por espessura
+        # Agrupar por espessura (Thickness)
         espessuras = df['Thickness(T)'].unique()
         
         for espessura in espessuras:
             st.subheader(f"Material: {espessura}")
             pecas_espessura = df[df['Thickness(T)'] == espessura]
             
-          # Dentro do loop de espessuras
-        if st.button(f"Otimizar Chapas para {espessura}"):
-            container_resultado = st.container() # Cria uma área dedicada ao resultado
-            
-            with container_resultado:
+            if st.button(f"Otimizar Chapas para {espessura}"):
+                # Inicializa o Packer com rotação permitida
                 packer = newPacker(rotation=True)
+                
+                # Adiciona 5 chapas como reservatório
                 for _ in range(5): 
                     packer.add_bin(2750, 1840)
                 
-                # ... (seu código de packer.add_rect e packer.pack continua igual) ...
+                # Adiciona as peças
+                for i, row in pecas_espessura.iterrows():
+                    packer.add_rect(row['Width_num'], row['Length_num'], rid=i)
                 
                 packer.pack()
                 
-                # Exibe cada chapa dentro do container
+                # --- LINHAS DE TESTE PARA DIAGNÓSTICO ---
+                st.write(f"Total de peças nesta espessura: {len(pecas_espessura)}")
+                st.write(f"Peças encaixadas pelo algoritmo: {len(packer.rect_list())}")
+                
+                # Desenha as chapas
                 for i, bin in enumerate(packer):
                     if len(bin.rect_list()) > 0:
                         st.write(f"### Chapa {i+1}")
-                        fig, ax = plt.subplots(figsize=(8, 4))
-                        # ... (seu código de desenho continua aqui) ...
-                        st.pyplot(fig) # Agora o pyplot sabe onde desenhar
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        # Desenha a borda da chapa
+                        ax.add_patch(patches.Rectangle((0, 0), 2750, 1840, fill=False, edgecolor='black', linewidth=3))
+                        
+                        # Desenha as peças
+                        for rect in bin:
+                            try:
+                                x, y, w, h = rect.x, rect.y, rect.width, rect.height
+                            except AttributeError:
+                                x, y, w, h = rect[0], rect[1], rect[2], rect[3]
+                            
+                            ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='blue', facecolor='skyblue', alpha=0.6))
+                            
+                            # Nome da peça
+                            nome_peca = pecas_espessura.iloc[rect.rid]['Description']
+                            ax.text(x+w/2, y+h/2, str(nome_peca), ha='center', va='center', fontsize=6)
+                        
+                        ax.set_xlim(0, 2750)
+                        ax.set_ylim(0, 1840)
+                        st.pyplot(fig)
