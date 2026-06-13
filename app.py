@@ -26,19 +26,22 @@ with tab2:
     arquivo_csv = st.file_uploader("Carregue seu CSV", type="csv")
     
     if arquivo_csv is not None:
-        df = pd.read_csv(arquivo_csv)
+        # AQUI ESTÁ A CORREÇÃO: adicionamos sep=';'
+        df = pd.read_csv(arquivo_csv, sep=';')
         
-        # MOSTRAR NOMES REAIS DAS COLUNAS
-        st.write("Colunas encontradas no seu arquivo:")
+        st.write("Colunas encontradas:")
         st.write(df.columns.tolist()) 
         
-        # Tente selecionar colunas apenas se elas existirem
-        colunas_desejadas = [c for c in ['Description', 'Width(W)', 'Length(L)', 'Material'] if c in df.columns]
+        # Agora o Python vai enxergar as colunas corretamente!
+        # Vamos usar os nomes exatos que apareceram na sua tela (com espaços se houver)
+        # Note que eles estão sem os espaços extras que o Excel colocou
+        colunas_desejadas = ['Description', 'Width(W)', 'Length(L)']
         
-        if colunas_desejadas:
+        # Verifica se as colunas estão lá agora
+        if all(col in df.columns for col in colunas_desejadas):
             st.dataframe(df[colunas_desejadas])
         else:
-            st.error("Não encontrei as colunas esperadas. Verifique se o nome no arquivo está igual!")
+            st.error("Ainda não encontrei as colunas. Verifique se os nomes batem exatamente com a lista acima.")
         
         # 2. Botão para desenhar
         if st.button("Gerar Mapa de Corte da Chapa"):
