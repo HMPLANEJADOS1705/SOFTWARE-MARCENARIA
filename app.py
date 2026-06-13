@@ -76,5 +76,35 @@ st.download_button(
     file_name="proposta_ricardo.pdf",
     mime="application/pdf"
 )
+import streamlit as st
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
+# --- ESTRUTURA DE ABAS ---
+tab1, tab2 = st.tabs(["📊 Painel de Produção", "🧩 Mapa de Corte (Otimização)"])
+
+with tab1:
+    st.header("Painel de Produção Profissional")
+    # Aqui você mantém o código que já tem (Tabela, Gráficos, etc.)
+    st.write("Seu painel principal continua aqui.")
+
+with tab2:
+    st.header("Visualização de Corte (Simulação)")
+    st.info("Aqui iremos exibir o desenho das peças na chapa de MDF.")
+    
+    # Exemplo visual simples de uma chapa (2750 x 1840)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    chapa = patches.Rectangle((0, 0), 2750, 1840, linewidth=2, edgecolor='black', facecolor='#f0f0f0')
+    ax.add_patch(chapa)
+    
+    # Exemplo de uma peça sendo desenhada na chapa
+    peca = patches.Rectangle((100, 100), 1200, 600, linewidth=1, edgecolor='blue', facecolor='skyblue', label="Lateral Esquerda")
+    ax.add_patch(peca)
+    
+    ax.set_xlim(0, 3000)
+    ax.set_ylim(0, 2000)
+    ax.set_aspect('equal')
+    ax.set_title("Layout da Chapa (Simulação)")
+    
+    st.pyplot(fig)
 
