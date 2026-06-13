@@ -1,110 +1,65 @@
 import streamlit as st
 import pandas as pd
-
-# Configuração da página
-st.set_page_config(layout="wide", page_title="Painel de Produção Profissional")
-
-st.title("🛠️ Painel de Produção Profissional (v4.0)")
-
-# Sidebar com as ferramentas
-with st.sidebar:
-    st.header("Ferramentas Profissionais")
-    st.button("Cadastro de Materiais")
-    st.button("Cadastro de Clientes")
-    st.info("Relatório de Projetos (v1.0) ativo")
-
-# --- LÓGICA DE CÁLCULO ---
-st.subheader("Entrada de Dados")
-col1, col2, col3 = st.columns(3)
-with col1:
-    comp = st.number_input("Comprimento (mm)", value=1200)
-with col2:
-    larg = st.number_input("Largura (mm)", value=600)
-with col3:
-    qtd = st.number_input("Quantidade", value=1)
-
-# Cálculo de Fita (Exemplo: borda em todo o perímetro)
-metragem_fita = ((comp * 2) + (larg * 2)) / 1000
-
-# --- EXIBIÇÃO ---
-col_tabela, col_grafico = st.columns([2, 1])
-
-with col_tabela:
-    st.subheader("Tabela de Peças e Materiais")
-    data = {
-        "Peça": ["Lateral Esquerda", "Lateral Direita", "Fundo Gaveta"],
-        "Material": ["MDF Branco", "MDF Branco", "MDF Branco"],
-        "Metragem Fita (ml)": [metragem_fita, metragem_fita, 1.0]
-    }
-    df = pd.DataFrame(data)
-    st.table(df)
-
-with col_grafico:
-    st.subheader("Custos Reais")
-    custos = {"Material": 1200, "Mão de Obra": 800, "Ferragens": 550}
-    st.bar_chart(custos)
-
-# Ação Final
-from fpdf import FPDF
-import io
-
-def gerar_pdf_proposta(dados_projeto):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    
-    # Cabeçalho
-    pdf.cell(200, 10, txt="PROPOSTA COMERCIAL - MARCENARIA 4.0", ln=True, align='C')
-    pdf.ln(10)
-    
-    # Conteúdo (Exemplo)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Cliente: Sr. Ricardo", ln=True)
-    pdf.cell(200, 10, txt=f"Valor Total: R$ 2.550,00", ln=True)
-    pdf.ln(5)
-    pdf.multi_cell(0, 10, txt="Esta proposta inclui material, ferragens e mão de obra detalhados no projeto.")
-    
-    # Retorna o PDF como bytes para o Streamlit
-    return pdf.output()
-
-# --- No seu código Streamlit ---
-pdf_bytes = gerar_pdf_proposta(None) # Aqui passaremos os dados reais depois
-
-st.download_button(
-    label="📄 Baixar Proposta em PDF",
-    data=bytes(pdf_bytes),
-    file_name="proposta_ricardo.pdf",
-    mime="application/pdf"
-)
-import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-# --- ESTRUTURA DE ABAS ---
+# Configuração da página
+st.set_page_config(layout="wide", page_title="Painel Marcenaria Pro")
+
+st.title("🛠️ Painel de Produção Profissional")
+
+# --- DEFINIÇÃO DAS ABAS ---
+# Aqui criamos as abas. O Streamlit identifica automaticamente a ordem: 
+# tab1 será a primeira, tab2 a segunda.
 tab1, tab2 = st.tabs(["📊 Painel de Produção", "🧩 Mapa de Corte (Otimização)"])
 
+# --- CONTEÚDO DA ABA 1 (Painel) ---
 with tab1:
-    st.header("Painel de Produção Profissional")
-    # Aqui você mantém o código que já tem (Tabela, Gráficos, etc.)
-    st.write("Seu painel principal continua aqui.")
+    st.header("Entrada de Dados e Orçamentos")
+    st.write("Aqui ficará a sua tabela de peças e o gráfico de custos que você já tinha.")
+    # Coloque o seu código original da aba 1 aqui abaixo:
+    # ... (seu código de entrada de medidas e custos) ...
 
+# --- CONTEÚDO DA ABA 2 (Mapa de Corte) ---
 with tab2:
-    st.header("Visualização de Corte (Simulação)")
-    st.info("Aqui iremos exibir o desenho das peças na chapa de MDF.")
+    st.header("Mapa de Corte (Otimização)")
     
-    # Exemplo visual simples de uma chapa (2750 x 1840)
-    fig, ax = plt.subplots(figsize=(10, 5))
-    chapa = patches.Rectangle((0, 0), 2750, 1840, linewidth=2, edgecolor='black', facecolor='#f0f0f0')
-    ax.add_patch(chapa)
+    # 1. Carregamento do arquivo CSV que vem do SketchUp
+    arquivo_csv = st.file_uploader("Carregue sua Lista de Peças (CSV do SketchUp)", type="csv")
     
-    # Exemplo de uma peça sendo desenhada na chapa
-    peca = patches.Rectangle((100, 100), 1200, 600, linewidth=1, edgecolor='blue', facecolor='skyblue', label="Lateral Esquerda")
-    ax.add_patch(peca)
-    
-    ax.set_xlim(0, 3000)
-    ax.set_ylim(0, 2000)
-    ax.set_aspect('equal')
-    ax.set_title("Layout da Chapa (Simulação)")
-    
-    st.pyplot(fig)
+    if arquivo_csv is not None:
+        # Lê o arquivo
+        df = pd.read_csv(arquivo_csv)
+        
+        # Limpeza rápida (remove o "mm" para permitir cálculos)
+        if 'Width(W)' in df.columns:
+            df['Width(W)'] = df['Width(W)'].replace(' mm', '', regex=True).astype(float)
+        if 'Length(L)' in df.columns:
+            df['Length(L)'] = df['Length(L)'].replace(' mm', '', regex=True).astype(float)
+            
+        st.write("### Peças carregadas:")
+        st.dataframe(df[['Description', 'Width(W)', 'Length(L)', 'Material']])
+        
+        # 2. Botão para desenhar
+        if st.button("Gerar Mapa de Corte da Chapa"):
+            st.info("Desenhando peças na chapa de 2750x1840mm...")
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Desenha a borda da chapa
+            chapa = patches.Rectangle((0, 0), 2750, 1840, facecolor='#f0f0f0', edgecolor='black', linewidth=2)
+            ax.add_patch(chapa)
+            
+            # Desenha a primeira peça como teste
+            peca = patches.Rectangle((50, 50), df['Width(W)'].iloc[0], df['Length(L)'].iloc[0], 
+                                     facecolor='skyblue', edgecolor='blue')
+            ax.add_patch(peca)
+            
+            ax.set_xlim(0, 3000)
+            ax.set_ylim(0, 2000)
+            ax.set_title("Simulação de Encaixe na Chapa")
+            
+            st.pyplot(fig)
+    else:
+        st.warning("Por favor, carregue um arquivo CSV para visualizar o mapa de corte.")
 
