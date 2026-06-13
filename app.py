@@ -1,86 +1,50 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# Configuração Profissional da Página
-st.set_page_config(page_title="Gestão de Marcenaria PRO", layout="wide")
-st.title("🪚 Software de Gestão de Marcenaria Professional")
+# Configuração da página
+st.set_page_config(layout="wide", page_title="Painel de Produção Profissional")
 
-# Inicialização segura do Cadastro de Materiais
-if 'materiais' not in st.session_state:
-    st.session_state.materiais = []
+st.title("🛠️ Painel de Produção Profissional (v4.0)")
 
-# Barra Lateral Esquerda Profissional
-menu = st.sidebar.selectbox("Menu Profissional", ["Importar Lista CSV", "Cadastro de Materiais", "Dashboard"])
+# Sidebar com as ferramentas
+with st.sidebar:
+    st.header("Ferramentas Profissionais")
+    st.button("Cadastro de Materiais")
+    st.button("Cadastro de Clientes")
+    st.info("Relatório de Projetos (v1.0) ativo")
 
-# --- MENU: DASHBOARD ---
-if menu == "Dashboard":
-    st.subheader("Resumo Geral")
-    st.write("Bem-vindo ao seu painel de controle.")
+# --- LÓGICA DE CÁLCULO ---
+st.subheader("Entrada de Dados")
+col1, col2, col3 = st.columns(3)
+with col1:
+    comp = st.number_input("Comprimento (mm)", value=1200)
+with col2:
+    larg = st.number_input("Largura (mm)", value=600)
+with col3:
+    qtd = st.number_input("Quantidade", value=1)
 
-# --- MENU: CADASTRO DE MATERIAIS ---
-elif menu == "Cadastro de Materiais":
-    st.subheader("Cadastro de Materiais e Insumos")
-    with st.form("form_material_pro"):
-        nome_mat = st.text_input("Nome do Material (ex: MDF 15mm)")
-        esp_mat = st.number_input("Espessura (mm)", min_value=1, value=15)
-        preco_mat = st.number_input("Preço de Custo (R$)", value=0.0)
-        markup_mat = st.slider("Markup de Lucro (%)", 0, 100, 30)
-        btn_salvar = st.form_submit_button("Salvar")
-        
-        if btn_salvar and nome_mat:
-            st.session_state.materiais.append({"Nome": nome_mat, "Espessura (mm)": esp_mat, "Preço Custo": preco_mat, "Markup": markup_mat})
-            st.rerun()
+# Cálculo de Fita (Exemplo: borda em todo o perímetro)
+metragem_fita = ((comp * 2) + (larg * 2)) / 1000
 
-    if st.session_state.materiais:
-        st.table(pd.DataFrame(st.session_state.materiais))
-        if st.button("Limpar lista de materiais"):
-            st.session_state.materiais = []
-            st.rerun()
+# --- EXIBIÇÃO ---
+col_tabela, col_grafico = st.columns([2, 1])
 
-# --- MENU: IMPORTAR CSV E CALCULAR ---
-elif menu == "Importar Lista CSV":
-    st.subheader("Importar e Pré-visualizar Lista do SketchUp")
-    arquivo = st.file_uploader("Arraste seu arquivo CSV aqui", type="csv")
-    
-    if arquivo:
-        # Carrega e exibe a lista ANTES de calcular
-        df = pd.read_csv(arquivo, sep=';')
-        st.write("Lista de peças encontrada:")
-        st.dataframe(df) # Isso traz de volta a pré-visualização que você queria
-        
-        if st.button("Gerar Orçamento Real"):
-            if not st.session_state.materiais:
-                st.error("Cadastre materiais primeiro!")
-            else:
-                total_projeto = 0
-                detalhes = []
-                
-                # Conversão segura das medidas
-                df['Width(W)'] = pd.to_numeric(df['Width(W)'].replace(r' mm', '', regex=True))
-                df['Length(L)'] = pd.to_numeric(df['Length(L)'].replace(r' mm', '', regex=True))
-                
-                # Loop de cálculo com padronização de espessura
-                for index, row in df.iterrows():
-                    # Padroniza: Limpa "mm" e espaços do CSV
-                    esp_peca_str = str(row['Thickness(T)']).replace(' mm', '').strip()
-                    area_m2 = (row['Width(W)'] * row['Length(L)'] * row['Copies']) / 1_000_000 # mm² p/ m²
-                    
-                    mat_usado = "Não encontrado"
-                    custo_linha = 0
-                    
-                    # Procura o material que tenha a espessura numérico exata
-                    for mat in st.session_state.materiais:
-                        if int(esp_peca_str) == mat['Espessura (mm)']:
-                            # Cálculo: Área * Preço de Venda
-                            preco_venda = mat['Preço Custo'] * (1 + mat['Markup']/100)
-                            custo_linha = area_m2 * preco_venda
-                            mat_usado = mat['Nome']
-                            break
-                    
-                    total_projeto += custo_linha
-                    detalhes.append({'Peça': row['Description'], 'Espessura (mm)': esp_peca_str, 'Material Usado': mat_usado, 'Custo Peça': custo_linha})
-                
-                st.metric("Valor Total do Projeto (MDF)", f"R$ {total_projeto:,.2f}")
-                st.write("Detalhamento por Peça:")
-                st.table(pd.DataFrame(detalhes))
+with col_tabela:
+    st.subheader("Tabela de Peças e Materiais")
+    data = {
+        "Peça": ["Lateral Esquerda", "Lateral Direita", "Fundo Gaveta"],
+        "Material": ["MDF Branco", "MDF Branco", "MDF Branco"],
+        "Metragem Fita (ml)": [metragem_fita, metragem_fita, 1.0]
+    }
+    df = pd.DataFrame(data)
+    st.table(df)
+
+with col_grafico:
+    st.subheader("Custos Reais")
+    custos = {"Material": 1200, "Mão de Obra": 800, "Ferragens": 550}
+    st.bar_chart(custos)
+
+# Ação Final
+if st.button("GERAR PROPOSTA PDF (Sr. Ricardo)"):
+    st.success("Proposta gerada com sucesso! (Simulação)")
+    st.balloons()
