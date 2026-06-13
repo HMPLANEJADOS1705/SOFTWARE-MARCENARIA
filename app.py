@@ -50,7 +50,7 @@ with tab2:
                 for i, row in pecas_espessura.iterrows():
                     packer.add_rect(row['Width_num'], row['Length_num'], rid=i)
                 
-               packer.pack()
+                packer.pack()
                 
                 # --- NOVO BLOCO DE DESENHO ROBUSTO ---
                 # Acessa todos os retângulos processados, independentemente da chapa
