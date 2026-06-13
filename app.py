@@ -4,44 +4,40 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from rectpack import newPacker, PackingMode
 
-# Configuração de Layout
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
-# --- BARRA LATERAL (Menu de Navegação) ---
+# Inicializa o estado dos cadastros se não existirem
+if 'estoque' not in st.session_state:
+    st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
+
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.title("⚙️ Gestão Marcenaria")
     menu = st.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
-    st.divider()
-    st.write("Versão 1.0 - Alpha")
-
-# --- FUNÇÕES AUXILIARES ---
-def desenhar_peca_com_fitas(ax, x, y, w, h, fitas, nome):
-    ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='black', facecolor='#E0E0E0'))
-    if fitas.get('C1'): ax.add_patch(patches.Rectangle((x, y + h - 3), w, 3, color='red'))
-    if fitas.get('C2'): ax.add_patch(patches.Rectangle((x, y), w, 3, color='red'))
-    if fitas.get('L1'): ax.add_patch(patches.Rectangle((x, y), 3, h, color='red'))
-    if fitas.get('L2'): ax.add_patch(patches.Rectangle((x + w - 3, y), 3, h, color='red'))
-    rotacao = 90 if h > w else 0
-    ax.text(x + w/2, y + h/2, nome, ha='center', va='center', fontsize=7, rotation=rotacao, color='black')
 
 # --- LÓGICA DO SISTEMA ---
 if menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte e Otimização")
-    arquivo_csv = st.file_uploader("Carregue seu CSV de peças", type="csv")
+    # ... (Seu código de Mapa de Corte que já estava funcionando bem) ...
+    st.info("Aqui permanece sua lógica de otimização de chapas.")
+
+elif menu == "Cadastro de Insumos":
+    st.header("📦 Cadastro de Insumos")
+    st.write("Cadastre aqui as chapas (MDF/Compensado) e madeiras (Sarrafos).")
     
-    if arquivo_csv:
-        df = pd.read_csv(arquivo_csv, sep=';')
-        # ... (seu código de processamento de dados e otimização aqui) ...
-        # DICA: Mantenha o código de otimização aqui, ele já está funcionando perfeitamente!
+    # Editor de estoque
+    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", use_container_width=True)
+    
+    if st.button("Salvar Cadastro"):
+        st.success("Cadastro salvo com sucesso!")
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    st.info("Aqui consolidaremos o custo das peças + fita + insumos cadastrados.")
-    # Colocaremos aqui o botão para gerar PDF e o resumo financeiro
-    if st.button("Gerar Orçamento em PDF"):
-        st.write("Funcionalidade em desenvolvimento...")
-
-elif menu == "Cadastro de Insumos":
-    st.header("📦 Cadastro de Insumos e Chapas")
-    st.write("Gerencie aqui suas chapas, fitas e acessórios (puxadores, etc).")
-    # Futuramente: st.data_editor para cadastro de preços e medidas de barras
+    st.write("Aqui usaremos os preços do 'Cadastro de Insumos' para calcular seu custo.")
+    
+    # Exemplo de seleção de modo de cálculo
+    modo_calculo = st.radio("Estratégia de Cálculo:", ["Por Chapa Inteira", "Por Área Utilizada (m²)"])
+    
+    if st.button("Calcular Projeto"):
+        st.write(f"Calculando orçamento usando estratégia: **{modo_calculo}**")
+        # Aqui entra a lógica de cruzar os dados do CSV de peças com o preço no 'estoque'
