@@ -59,16 +59,20 @@ with tab2:
                         fig, ax = plt.subplots(figsize=(8, 4))
                         ax.add_patch(patches.Rectangle((0, 0), 2750, 1840, fill=False, edgecolor='black', linewidth=3))
                         
-                       # Substitua o loop do desenho por este:
-                        for rect in bin.rect_list():
-                            # Usamos os índices da tupla em vez de propriedades de objeto,
-                            # que é mais compatível entre versões do rectpack
-                            x, y = rect.x, rect.y
-                            w, h = rect.width, rect.height
+                      # Substitua o loop for rect in bin.rect_list(): por este abaixo:
+                        for rect in bin:
+                            # Tentamos acessar os atributos. Se o rectpack for uma versão 
+                            # que trata como objeto, .x, .y, .width, .height funcionarão.
+                            try:
+                                x, y, w, h = rect.x, rect.y, rect.width, rect.height
+                            except AttributeError:
+                                # Caso a versão trate como tupla/lista indexada
+                                x, y, w, h = rect[0], rect[1], rect[2], rect[3]
+                            
                             rid = rect.rid
                             
                             ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='blue', facecolor='skyblue', alpha=0.6))
-                            # Adicionando o nome da peça usando o índice recuperado
-                            nome_peca = pecas_espessura.iloc[rid]['Description']
+                            
+                            # Recupera o nome da peça com segurança
+                            nome_peca = pecas_espessura.iloc[rid]['Description'] if rid < len(pecas_espessura) else "Peça"
                             ax.text(x+w/2, y+h/2, str(nome_peca), ha='center', va='center', fontsize=6)
-
