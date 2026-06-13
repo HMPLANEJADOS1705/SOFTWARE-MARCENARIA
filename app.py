@@ -23,6 +23,25 @@ if menu == "Mapa de Corte":
 
 elif menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
+    
+    # Garantir que os dados persistam mesmo após recarregar a página
+    if 'estoque' not in st.session_state:
+        st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
+    
+    # Campo de ajuda para o usuário
+    st.info("Dica: Preencha a linha toda antes de mudar de linha para evitar instabilidade.")
+    
+    # O data_editor agora usa o session_state como fonte da verdade
+    st.session_state.estoque = st.data_editor(
+        st.session_state.estoque, 
+        num_rows="dynamic", 
+        use_container_width=True,
+        key="editor_estoque" # A 'key' é o que impede de sumir os dados
+    )
+    
+    if st.button("Salvar Cadastro Definitivo"):
+        # Aqui você pode salvar em um arquivo CSV se quiser futuramente
+        st.success("Cadastro salvo na memória do sistema!")
     st.write("Cadastre aqui as chapas (MDF/Compensado) e madeiras (Sarrafos).")
     
     # Editor de estoque
