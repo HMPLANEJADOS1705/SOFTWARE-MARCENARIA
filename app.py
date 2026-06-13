@@ -43,26 +43,31 @@ with tab2:
         else:
             st.error("Ainda não encontrei as colunas. Verifique se os nomes batem exatamente com a lista acima.")
         
-        # 2. Botão para desenhar
+       # 2. Botão para desenhar
         if st.button("Gerar Mapa de Corte da Chapa"):
-            st.info("Desenhando peças na chapa de 2750x1840mm...")
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Desenha a borda da chapa
-            chapa = patches.Rectangle((0, 0), 2750, 1840, facecolor='#f0f0f0', edgecolor='black', linewidth=2)
-            ax.add_patch(chapa)
-            
-            # Desenha a primeira peça como teste
-            peca = patches.Rectangle((50, 50), df['Width(W)'].iloc[0], df['Length(L)'].iloc[0], 
-                                     facecolor='skyblue', edgecolor='blue')
-            ax.add_patch(peca)
-            
-            ax.set_xlim(0, 3000)
-            ax.set_ylim(0, 2000)
-            ax.set_title("Simulação de Encaixe na Chapa")
-            
-            st.pyplot(fig)
-    else:
-        st.warning("Por favor, carregue um arquivo CSV para visualizar o mapa de corte.")
+            try:
+                # Limpeza: remove ' mm' e transforma em número
+                df['Width_num'] = df['Width(W)'].astype(str).str.replace(' mm', '').astype(float)
+                df['Length_num'] = df['Length(L)'].astype(str).str.replace(' mm', '').astype(float)
+                
+                st.info("Desenhando peças na chapa...")
+                
+                fig, ax = plt.subplots(figsize=(10, 6))
+                
+                # Desenha a borda da chapa (2750 x 1840)
+                chapa = patches.Rectangle((0, 0), 2750, 1840, facecolor='#f0f0f0', edgecolor='black', linewidth=2)
+                ax.add_patch(chapa)
+                
+                # Desenha a primeira peça da lista
+                peca = patches.Rectangle((50, 50), df['Width_num'].iloc[0], df['Length_num'].iloc[0], 
+                                         facecolor='skyblue', edgecolor='blue')
+                ax.add_patch(peca)
+                
+                ax.set_xlim(0, 3000)
+                ax.set_ylim(0, 2000)
+                ax.set_title("Simulação: Primeira peça na Chapa")
+                
+                st.pyplot(fig)
+            except Exception as e:
+                st.error(f"Erro ao gerar desenho: {e}")
 
