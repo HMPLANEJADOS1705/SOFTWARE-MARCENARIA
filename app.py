@@ -23,22 +23,22 @@ with tab1:
 # --- CONTEÚDO DA ABA 2 (Mapa de Corte) ---
 with tab2:
     st.header("Mapa de Corte (Otimização)")
-    
-    # 1. Carregamento do arquivo CSV que vem do SketchUp
-    arquivo_csv = st.file_uploader("Carregue sua Lista de Peças (CSV do SketchUp)", type="csv")
+    arquivo_csv = st.file_uploader("Carregue seu CSV", type="csv")
     
     if arquivo_csv is not None:
-        # Lê o arquivo
         df = pd.read_csv(arquivo_csv)
         
-        # Limpeza rápida (remove o "mm" para permitir cálculos)
-        if 'Width(W)' in df.columns:
-            df['Width(W)'] = df['Width(W)'].replace(' mm', '', regex=True).astype(float)
-        if 'Length(L)' in df.columns:
-            df['Length(L)'] = df['Length(L)'].replace(' mm', '', regex=True).astype(float)
-            
-        st.write("### Peças carregadas:")
-        st.dataframe(df[['Description', 'Width(W)', 'Length(L)', 'Material']])
+        # MOSTRAR NOMES REAIS DAS COLUNAS
+        st.write("Colunas encontradas no seu arquivo:")
+        st.write(df.columns.tolist()) 
+        
+        # Tente selecionar colunas apenas se elas existirem
+        colunas_desejadas = [c for c in ['Description', 'Width(W)', 'Length(L)', 'Material'] if c in df.columns]
+        
+        if colunas_desejadas:
+            st.dataframe(df[colunas_desejadas])
+        else:
+            st.error("Não encontrei as colunas esperadas. Verifique se o nome no arquivo está igual!")
         
         # 2. Botão para desenhar
         if st.button("Gerar Mapa de Corte da Chapa"):
