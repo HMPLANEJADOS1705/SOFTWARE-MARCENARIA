@@ -77,8 +77,4 @@ st.download_button(
     mime="application/pdf"
 )
 
-**O que faremos a seguir?**
-1. Você consegue rodar essa parte do PDF?
-2. Depois disso, posso te mandar a lógica para a **Lista de Corte** e o início do desenho do **Mapa de Chapa** (aquele desenho estilo Maxcut).
 
-Qual dessas funções quer que eu detalhe o código agora?
