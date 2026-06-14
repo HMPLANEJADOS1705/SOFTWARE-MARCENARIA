@@ -6,73 +6,74 @@ from rectpack import newPacker, PackingMode
 
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
-# Inicializa o estado dos cadastros se não existirem
+# --- ESTADO INICIAL ---
 if 'estoque' not in st.session_state:
     st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
+if 'df' not in st.session_state:
+    st.session_state.df = None
 
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.title("⚙️ Gestão Marcenaria")
     menu = st.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
 
-# --- LÓGICA DO SISTEMA ---
+# --- FUNÇÕES ---
+def desenhar_peca(ax, x, y, w, h, fitas, nome):
+    ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='black', facecolor='#E0E0E0'))
+    if fitas.get('C1'): ax.add_patch(patches.Rectangle((x, y + h - 3), w, 3, color='red'))
+    if fitas.get('C2'): ax.add_patch(patches.Rectangle((x, y), w, 3, color='red'))
+    if fitas.get('L1'): ax.add_patch(patches.Rectangle((x, y), 3, h, color='red'))
+    if fitas.get('L2'): ax.add_patch(patches.Rectangle((x + w - 3, y), 3, h, color='red'))
+    rot = 90 if h > w else 0
+    ax.text(x + w/2, y + h/2, nome, ha='center', va='center', fontsize=7, rotation=rot)
+
+# --- ROTAS ---
 if menu == "Mapa de Corte":
-    st.header("🗺️ Mapa de Corte e Otimização")
-    # ... (Seu código de Mapa de Corte que já estava funcionando bem) ...
-    st.info("Aqui permanece sua lógica de otimização de chapas.")
+    st.header("🗺️ Mapa de Corte")
+    arquivo = st.file_uploader("Carregue o CSV", type="csv")
+    if arquivo:
+        df_base = pd.read_csv(arquivo, sep=';')
+        # Lista de materiais cadastrados para o dropdown
+        lista_materiais = st.session_state.estoque['Material'].tolist()
+        
+        st.session_state.df = st.data_editor(
+            df_base, 
+            column_config={"Thickness(T)": st.column_config.SelectboxColumn("Material", options=lista_materiais)},
+            num_rows="dynamic"
+        )
+        
+        if st.button("Otimizar Chapas"):
+            df = st.session_state.df
+            df['Width_num'] = df['Width(W)'].astype(str).str.replace(' mm', '').astype(float)
+            df['Length_num'] = df['Length(L)'].astype(str).str.replace(' mm', '').astype(float)
+            
+            for mat in df['Thickness(T)'].unique():
+                st.subheader(f"Material: {mat}")
+                pecas = df[df['Thickness(T)'] == mat]
+                packer = newPacker(rotation=True, mode=PackingMode.Offline)
+                for _ in range(10): packer.add_bin(2750, 1840)
+                for i, row in pecas.iterrows(): packer.add_rect(row['Width_num']+3, row['Length_num']+3, rid=i)
+                packer.pack()
+                for b in sorted(list(set([r[0] for r in packer.rect_list()]))):
+                    fig, ax = plt.subplots(figsize=(8, 5))
+                    ax.add_patch(patches.Rectangle((0,0), 2750, 1840, fill=False))
+                    for r in [rect for rect in packer.rect_list() if rect[0]==b]:
+                        desenhar_peca(ax, r[1], r[2], r[3], r[4], {'C1':False}, "Peça")
+                    st.pyplot(fig)
+
+elif menu == "Cadastro de Insumos":
+    st.header("📦 Cadastro de Insumos")
+    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", key="estoque_editor")
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    
-    if st.session_state.df is not None and not st.session_state.estoque.empty:
-        # Modo de cálculo
-        modo_calculo = st.radio("Selecione o modo de cálculo:", ["Por Chapa Inteira", "Por Área Utilizada (m²)"])
-        
+    if st.session_state.df is not None:
         if st.button("Calcular Projeto"):
             df_pecas = st.session_state.df
-            df_estoque = st.session_state.estoque
-            
-            st.subheader("Resumo do Orçamento")
-            # Aqui vamos cruzar o df_pecas com o df_estoque
-            # Vamos exibir uma tabela com: Material | Qtd | Preço Estimado
-            st.write("Cálculo em processamento...")
-            # (Vou finalizar essa lógica de cruzamento de dados com você no próximo passo)
-    else:
-        st.warning("Certifique-se de ter carregado o CSV na aba 'Mapa de Corte' e preenchido o cadastro de insumos.")
-    
-    # Garantir que os dados persistam mesmo após recarregar a página
-    if 'estoque' not in st.session_state:
-        st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
-    
-    # Campo de ajuda para o usuário
-    st.info("Dica: Preencha a linha toda antes de mudar de linha para evitar instabilidade.")
-    
-    # O data_editor agora usa o session_state como fonte da verdade
-    st.session_state.estoque = st.data_editor(
-        st.session_state.estoque, 
-        num_rows="dynamic", 
-        use_container_width=True,
-        key="editor_estoque" # A 'key' é o que impede de sumir os dados
-    )
-    
-    if st.button("Salvar Cadastro Definitivo"):
-        # Aqui você pode salvar em um arquivo CSV se quiser futuramente
-        st.success("Cadastro salvo na memória do sistema!")
-    st.write("Cadastre aqui as chapas (MDF/Compensado) e madeiras (Sarrafos).")
-    
-    # Editor de estoque
-    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", use_container_width=True)
-    
-    if st.button("Salvar Cadastro"):
-        st.success("Cadastro salvo com sucesso!")
-
-elif menu == "Orçamentos":
-    st.header("💰 Gerador de Orçamentos")
-    st.write("Aqui usaremos os preços do 'Cadastro de Insumos' para calcular seu custo.")
-    
-    # Exemplo de seleção de modo de cálculo
-    modo_calculo = st.radio("Estratégia de Cálculo:", ["Por Chapa Inteira", "Por Área Utilizada (m²)"])
-    
-    if st.button("Calcular Projeto"):
-        st.write(f"Calculando orçamento usando estratégia: **{modo_calculo}**")
-        # Aqui entra a lógica de cruzar os dados do CSV de peças com o preço no 'estoque'
+            resumo = []
+            for mat in df_pecas['Thickness(T)'].unique():
+                info = st.session_state.estoque[st.session_state.estoque['Material'] == mat]
+                if not info.empty:
+                    preco = info.iloc[0]['Preço_Unit']
+                    resumo.append({"Material": mat, "Valor": preco})
+            st.table(pd.DataFrame(resumo))
