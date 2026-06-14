@@ -71,7 +71,15 @@ if menu == "Mapa de Corte":
 
 elif menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
-    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", key="estoque_editor")
+    st.write("Gerencie suas chapas e insumos abaixo:")
+    
+    # Editor de estoque com salvamento via botão
+    # Usamos o 'edited_df' para capturar o estado da tabela antes de salvar
+    df_estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", key="estoque_editor")
+    
+    if st.button("💾 Salvar Cadastro"):
+        st.session_state.estoque = df_estoque
+        st.success("Cadastro salvo com sucesso e disponível para os cálculos!")
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
