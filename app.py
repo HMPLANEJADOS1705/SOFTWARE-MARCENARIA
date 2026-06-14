@@ -8,7 +8,7 @@ st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
 # --- ESTADO INICIAL ---
 if 'estoque' not in st.session_state:
-    st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
+    st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Preço_Unit'])
 if 'df' not in st.session_state:
     st.session_state.df = None
 
@@ -20,6 +20,7 @@ with st.sidebar:
 # --- FUNÇÕES ---
 def desenhar_peca(ax, x, y, w, h, fitas, nome):
     ax.add_patch(patches.Rectangle((x, y), w, h, edgecolor='black', facecolor='#E0E0E0'))
+    # Indicações de Fita (C1, C2, L1, L2)
     if fitas.get('C1'): ax.add_patch(patches.Rectangle((x, y + h - 3), w, 3, color='red'))
     if fitas.get('C2'): ax.add_patch(patches.Rectangle((x, y), w, 3, color='red'))
     if fitas.get('L1'): ax.add_patch(patches.Rectangle((x, y), 3, h, color='red'))
@@ -33,8 +34,12 @@ if menu == "Mapa de Corte":
     arquivo = st.file_uploader("Carregue o CSV", type="csv")
     if arquivo:
         df_base = pd.read_csv(arquivo, sep=';')
-        # Lista de materiais cadastrados para o dropdown
-        lista_materiais = st.session_state.estoque['Material'].tolist()
+        # Garantir colunas de fita
+        for f in ['C1', 'C2', 'L1', 'L2']:
+            if f not in df_base.columns: df_base[f] = False
+        
+        # Dropdown para Material
+        lista_materiais = st.session_state.estoque['Material'].tolist() if not st.session_state.estoque.empty else []
         
         st.session_state.df = st.data_editor(
             df_base, 
@@ -58,7 +63,10 @@ if menu == "Mapa de Corte":
                     fig, ax = plt.subplots(figsize=(8, 5))
                     ax.add_patch(patches.Rectangle((0,0), 2750, 1840, fill=False))
                     for r in [rect for rect in packer.rect_list() if rect[0]==b]:
-                        desenhar_peca(ax, r[1], r[2], r[3], r[4], {'C1':False}, "Peça")
+                        # Pega as fitas da linha correspondente
+                        idx = r[5]
+                        fitas = {'C1': df.iloc[idx]['C1'], 'C2': df.iloc[idx]['C2'], 'L1': df.iloc[idx]['L1'], 'L2': df.iloc[idx]['L2']}
+                        desenhar_peca(ax, r[1], r[2], r[3], r[4], fitas, df.iloc[idx]['Description'])
                     st.pyplot(fig)
 
 elif menu == "Cadastro de Insumos":
@@ -74,6 +82,5 @@ elif menu == "Orçamentos":
             for mat in df_pecas['Thickness(T)'].unique():
                 info = st.session_state.estoque[st.session_state.estoque['Material'] == mat]
                 if not info.empty:
-                    preco = info.iloc[0]['Preço_Unit']
-                    resumo.append({"Material": mat, "Valor": preco})
+                    resumo.append({"Material": mat, "Preço Unitário": info.iloc[0]['Preço_Unit']})
             st.table(pd.DataFrame(resumo))
