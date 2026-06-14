@@ -83,12 +83,42 @@ elif menu == "Cadastro de Insumos":
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    if st.session_state.df is not None:
-        if st.button("Calcular Projeto"):
+    
+    if st.session_state.df is not None and not st.session_state.estoque.empty:
+        # Seleção de estratégia
+        modo_calculo = st.radio("Selecione a estratégia:", ["Por Área Utilizada (m²)", "Por Chapa Inteira"])
+        
+        if st.button("Gerar Cálculo do Projeto"):
             df_pecas = st.session_state.df
-            resumo = []
-            for mat in df_pecas['Thickness(T)'].unique():
-                info = st.session_state.estoque[st.session_state.estoque['Material'] == mat]
-                if not info.empty:
-                    resumo.append({"Material": mat, "Preço Unitário": info.iloc[0]['Preço_Unit']})
-            st.table(pd.DataFrame(resumo))
+            df_estoque = st.session_state.estoque
+            
+            # Criamos uma lista para exibir os resultados
+            resultados = []
+            
+            for material_selecionado in df_pecas['Thickness(T)'].unique():
+                # Filtra peças deste material
+                pecas_do_mat = df_pecas[df_pecas['Thickness(T)'] == material_selecionado]
+                
+                # Busca info no estoque
+                info_est = df_estoque[df_estoque['Material'] == material_selecionado]
+                
+                if not info_est.empty:
+                    preco_unit = info_est.iloc[0]['Preço_Unit']
+                    
+                    if modo_calculo == "Por Área Utilizada (m²)":
+                        # Calcula área total das peças desse material
+                        area_total = (pecas_do_mat['Width_num'] * pecas_do_mat['Length_num']).sum() / 1000000
+                        # Calcula custo proporcional (considerando a chapa padrão 2.75x1.85 = 5.08m²)
+                        valor_final = area_total * (preco_unit / 5.08)
+                        resultados.append({"Material": material_selecionado, "Área Total (m²)": round(area_total, 2), "Custo Estimado R$": round(valor_final, 2)})
+                    
+                    else:
+                        # Cálculo simples: assume 1 chapa (ou podemos aprimorar depois)
+                        valor_final = preco_unit
+                        resultados.append({"Material": material_selecionado, "Base": "Chapa Inteira", "Custo R$": round(valor_final, 2)})
+            
+            # Exibe tabela final
+            st.table(pd.DataFrame(resultados))
+            
+    else:
+        st.warning("⚠️ Atenção: Certifique-se de que o CSV está carregado no 'Mapa de Corte' e o Cadastro de Insumos está salvo.")
