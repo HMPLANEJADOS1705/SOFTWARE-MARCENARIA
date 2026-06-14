@@ -47,27 +47,26 @@ if menu == "Mapa de Corte":
             num_rows="dynamic"
         )
         
+        # Dentro da aba "Mapa de Corte", após a otimização
         if st.button("Otimizar Chapas"):
             df = st.session_state.df
-            df['Width_num'] = df['Width(W)'].astype(str).str.replace(' mm', '').astype(float)
-            df['Length_num'] = df['Length(L)'].astype(str).str.replace(' mm', '').astype(float)
+            # ... (código anterior de cálculo de área) ...
             
+            # --- NOVA PRÉVIA DE VALOR ---
+            st.subheader("📊 Prévia de Custo")
+            total_previa = 0
             for mat in df['Thickness(T)'].unique():
-                st.subheader(f"Material: {mat}")
-                pecas = df[df['Thickness(T)'] == mat]
-                packer = newPacker(rotation=True, mode=PackingMode.Offline)
-                for _ in range(10): packer.add_bin(2750, 1840)
-                for i, row in pecas.iterrows(): packer.add_rect(row['Width_num']+3, row['Length_num']+3, rid=i)
-                packer.pack()
-                for b in sorted(list(set([r[0] for r in packer.rect_list()]))):
-                    fig, ax = plt.subplots(figsize=(8, 5))
-                    ax.add_patch(patches.Rectangle((0,0), 2750, 1840, fill=False))
-                    for r in [rect for rect in packer.rect_list() if rect[0]==b]:
-                        # Pega as fitas da linha correspondente
-                        idx = r[5]
-                        fitas = {'C1': df.iloc[idx]['C1'], 'C2': df.iloc[idx]['C2'], 'L1': df.iloc[idx]['L1'], 'L2': df.iloc[idx]['L2']}
-                        desenhar_peca(ax, r[1], r[2], r[3], r[4], fitas, df.iloc[idx]['Description'])
-                    st.pyplot(fig)
+                info = st.session_state.estoque[st.session_state.estoque['Material'] == mat]
+                if not info.empty:
+                    preco = info.iloc[0]['Preço_Unit']
+                    # Cálculo rápido: Área total do material / 5.08
+                    area = (df[df['Thickness(T)'] == mat]['Width_num'] * df[df['Thickness(T)'] == mat]['Length_num']).sum() / 1000000
+                    custo_parcial = area * (preco / 5.08)
+                    total_previa += custo_parcial
+                    st.write(f"Material: {mat} | Custo parcial estimado: **R$ {custo_parcial:.2f}**")
+            st.metric("Total Estimado", f"R$ {total_previa:.2f}")
+            
+            # ... (seu código de desenho das chapas continua abaixo) ...
 
 elif menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
