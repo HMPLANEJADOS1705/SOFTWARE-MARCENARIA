@@ -15,7 +15,7 @@ with st.sidebar:
 
 lista_materiais = st.session_state.estoque['Material'].unique().tolist() if not st.session_state.estoque.empty else []
 
-elif menu == "Cadastro de Insumos":
+ elif menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
     st.write("Dica: Preencha Largura e Comprimento para Chapas. Para Pinus, use o comprimento da peça e a largura.")
     
