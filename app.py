@@ -18,43 +18,30 @@ with st.sidebar:
 lista_materiais = st.session_state.estoque['Material'].unique().tolist() if not st.session_state.estoque.empty else []
 
 # --- ROTAS ---
-if menu == "Mapa de Corte":
-    st.header("🗺️ Mapa de Corte")
-    arquivo = st.file_uploader("Carregue o CSV", type="csv")
-    
-    if arquivo:
-        df = pd.read_csv(arquivo, sep=';')
+# ... dentro do elif menu == "Mapa de Corte":
         
-        # 1. Ajustes Iniciais: colunas de fita e colunas auxiliares
-        for f in ['C1', 'C2', 'L1', 'L2']:
-            if f not in df.columns: df[f] = False
+        # 1. Renomeação e Limpeza (como já fizemos)
+        df = df.rename(columns={...})
+        df = df.drop(columns=[...])
         
-        # Renomeação para Português
-        df = df.rename(columns={
-            "Part #": "Código",
-            "Sub-Assembly": "Sub-Montagem",
-            "Description": "Descrição",
-            "Copies": "Quantidade",
-            "Thickness(T)": "Material", 
-            "Width(W)": "Largura",
-            "Length(L)": "Comprimento",
-            "Can Rotate": "Rotação"
-        })
+        # 2. LÓGICA DE AUTO-NUMERAÇÃO
+        # Se a coluna Código não estiver preenchida (estiver vazia ou NaN), preenchemos
+        if 'Código' in df.columns:
+            # Identifica qual o maior número atual
+            max_code = df['Código'].max() if not df['Código'].isna().all() else 0
+            
+            # Preenche as linhas que estão nulas ou vazias
+            for idx in df.index:
+                if pd.isna(df.loc[idx, 'Código']) or df.loc[idx, 'Código'] == '':
+                    max_code += 1
+                    df.loc[idx, 'Código'] = max_code
         
-        # 2. Preenchimento Automático do Código (se estiver vazio)
-        df['Código'] = range(1, len(df) + 1)
-        
-        # 3. Remover colunas desnecessárias
-        cols_para_remover = ["Material Type", "Material Name", "Unnamed: 10"]
-        df = df.drop(columns=[c for c in cols_para_remover if c in df.columns])
-        
-        # 4. Editor com Configurações Avançadas
+        # 3. Editor
         st.session_state.df = st.data_editor(
             df, 
             column_config={
-                "Material": st.column_config.SelectboxColumn("Material", options=lista_materiais, required=True),
-                "Rotação": st.column_config.SelectboxColumn("Rotação", options=["Sim", "Não"], required=True),
-                "Código": st.column_config.NumberColumn("Código", disabled=True) # Automático e bloqueado
+                "Código": st.column_config.NumberColumn("Código", disabled=True),
+                # ... resto do config ...
             },
             num_rows="dynamic",
             use_container_width=True
