@@ -6,6 +6,7 @@ from rectpack import newPacker, PackingMode
 
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
+# --- ESTADO INICIAL ---
 if 'estoque' not in st.session_state:
     st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Preço_Unit'])
 if 'df' not in st.session_state:
@@ -26,21 +27,24 @@ elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
     arquivo = st.file_uploader("Carregue o CSV", type="csv")
     if arquivo:
-        df_base = pd.read_csv(arquivo, sep=';')
+        df = pd.read_csv(arquivo, sep=';')
         
-        # Dicionário de tradução para os nomes das colunas
-        traducao = {
+        # 1. Garantir colunas de fita e tradução
+        for f in ['C1', 'C2', 'L1', 'L2']:
+            if f not in df.columns: df[f] = False
+        
+        # 2. Renomear colunas para Português (mapeamento exato)
+        df = df.rename(columns={
             "Description": "Descrição",
             "Copies": "Quantidade",
-            "Material": "Material",
+            "Thickness(T)": "Material", 
             "Width(W)": "Largura",
             "Length(L)": "Comprimento"
-        }
-        df_base = df_base.rename(columns=traducao)
+        })
         
-        # Editor com lista suspensa na coluna "Material"
+        # 3. Editor com lista suspensa na coluna "Material" (que antes era Thickness(T))
         st.session_state.df = st.data_editor(
-            df_base, 
+            df, 
             column_config={
                 "Material": st.column_config.SelectboxColumn("Material", options=lista_materiais, required=True)
             },
@@ -48,9 +52,8 @@ elif menu == "Mapa de Corte":
         )
         
         if st.button("Otimizar Chapas"):
-            st.write("Processando...")
-            # Aqui entrará a lógica de cálculo usando a coluna "Material" traduzida
+            st.write("Processando otimização...")
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    st.write("O cálculo será feito com base na coluna 'Material' que você selecionou no Mapa de Corte.")
+    st.write("O sistema usa a coluna 'Material' que você selecionou no Mapa de Corte.")
