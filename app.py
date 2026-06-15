@@ -5,9 +5,8 @@ st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
 # --- ESTADO INICIAL ---
 if 'estoque' not in st.session_state:
+    # Inicializamos já com as colunas certas
     st.session_state.estoque = pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
-if 'df' not in st.session_state:
-    st.session_state.df = None
 
 with st.sidebar:
     st.title("⚙️ Gestão Marcenaria")
@@ -16,12 +15,10 @@ with st.sidebar:
 # --- CADASTRO DE INSUMOS ---
 if menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
-    # Capturamos o editor em uma variável temporária
-    editor_estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", use_container_width=True, key="estoque_editor")
-    
+    # Adicionamos um contador na key para forçar o recarregamento se necessário
+    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", use_container_width=True, key="tabela_insumos")
     if st.button("💾 Salvar Cadastro"):
-        st.session_state.estoque = editor_estoque
-        st.success("Todas as linhas foram salvas com sucesso!")
+        st.success("Cadastro salvo!")
 
 # --- MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
@@ -31,24 +28,32 @@ elif menu == "Mapa de Corte":
     if arquivo:
         df = pd.read_csv(arquivo, sep=';')
         
-        # 1. Filtro rigoroso: removemos tudo que não queremos logo na leitura
-        colunas_indesejadas = ["Material Type", "Material Name", "Unnamed: 10"]
-        df = df.drop(columns=[c for c in colunas_indesejadas if c in df.columns], errors='ignore')
+        # 1. Limpeza rigorosa
+        df = df.drop(columns=[c for c in ["Material Type", "Material Name", "Unnamed: 10"] if c in df.columns], errors='ignore')
         
         # 2. Renomeação
-        cols_map = {"Part #": "Código", "Sub-Assembly": "Sub-Montagem", "Description": "Descrição", 
-                    "Copies": "Quantidade", "Thickness(T)": "Material", "Width(W)": "Largura", 
-                    "Length(L)": "Comprimento", "Can Rotate": "Rotação"}
-        df = df.rename(columns=cols_map)
+        df = df.rename(columns={
+            "Part #": "Código", "Sub-Assembly": "Sub-Montagem", "Description": "Descrição", 
+            "Copies": "Quantidade", "Thickness(T)": "Material", "Width(W)": "Largura", 
+            "Length(L)": "Comprimento", "Can Rotate": "Rotação"
+        })
         
-        # 3. Lista vinda do session_state garantindo que todas as linhas cadastradas apareçam
+        # 3. GARANTIR COLUNAS DE FITA (Criamos se não existirem)
+        for fita in ['C1', 'C2', 'L1', 'L2']:
+            if fita not in df.columns:
+                df[fita] = False
+        
+        # 4. Lista atualizada (Buscamos direto do estado atual)
         lista_materiais = st.session_state.estoque['Material'].dropna().unique().tolist()
         
-        st.session_state.df = st.data_editor(df, column_config={
+        # 5. Edição com configurações
+        configuracoes = {
             "Material": st.column_config.SelectboxColumn("Material", options=lista_materiais, required=True),
             "Rotação": st.column_config.SelectboxColumn("Rotação", options=["Sim", "Não"], required=True)
-        }, use_container_width=True)
+        }
+        
+        st.data_editor(df, column_config=configuracoes, use_container_width=True)
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    st.write("Cálculo pronto para ser implementado.")
+    st.write("Materiais salvos na memória:", st.session_state.estoque['Material'].tolist())
