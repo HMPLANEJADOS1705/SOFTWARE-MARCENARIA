@@ -15,12 +15,26 @@ with st.sidebar:
 
 lista_materiais = st.session_state.estoque['Material'].unique().tolist() if not st.session_state.estoque.empty else []
 
-if menu == "Cadastro de Insumos":
+elif menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
-    st.session_state.estoque = st.data_editor(st.session_state.estoque, num_rows="dynamic", key="estoque_editor")
+    st.write("Dica: Preencha Largura e Comprimento para Chapas. Para Pinus, use o comprimento da peça e a largura.")
+    
+    # Redefinimos a estrutura com as colunas que você precisa
+    colunas_estoque = ['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade']
+    
+    # Se o estoque estiver vazio ou sem as colunas novas, criamos o DataFrame correto
+    if st.session_state.estoque.empty or not all(col in st.session_state.estoque.columns for col in colunas_estoque):
+        st.session_state.estoque = pd.DataFrame(columns=colunas_estoque)
+    
+    st.session_state.estoque = st.data_editor(
+        st.session_state.estoque, 
+        num_rows="dynamic", 
+        key="estoque_editor",
+        use_container_width=True
+    )
+    
     if st.button("💾 Salvar Cadastro"): 
-        st.success("Cadastro salvo!")
-
+        st.success("Cadastro salvo com as novas colunas!")
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
     arquivo = st.file_uploader("Carregue o CSV", type="csv")
