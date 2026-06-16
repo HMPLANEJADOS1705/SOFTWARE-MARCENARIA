@@ -63,34 +63,37 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        def calcular(row):
+      def calcular(row):
             try:
-                # Remove o " mm" e converte para número
-                l_str = str(row.get('Largura', '0')).replace(' mm', '').replace(',', '.')
-                c_str = str(row.get('Comprimento', '0')).replace(' mm', '').replace(',', '.')
-                
-                l = float(l_str)
-                c = float(c_str)
+                # 1. Limpeza
+                l = float(str(row.get('Largura', 0)).replace(' mm', '').replace(',', '.'))
+                c = float(str(row.get('Comprimento', 0)).replace(' mm', '').replace(',', '.'))
                 area = (l * c) / 1000000
                 
-                # Busca custo da chapa
-                p_mat = chapas[chapas['Material'] == row.get('Material')]['Preço_Unit'].values
-                custo = area * (p_mat[0] if len(p_mat) > 0 else 0)
+                # 2. Busca Preço Chapa
+                mat_selecionado = row.get('Material')
+                # Filtra o preço unitário
+                preco_mat_list = chapas[chapas['Material'] == mat_selecionado]['Preço_Unit'].values
                 
-                # Busca custo da fita
+                if len(preco_mat_list) == 0:
+                    return f"Erro: Mat. {mat_selecionado} não encontrado"
+                
+                custo = area * preco_mat_list[0]
+                
+                # 3. Busca Preço Fita
                 fita = row.get('Fita_Usada')
-                p_fita = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
-                p_fita = p_fita[0] if len(p_fita) > 0 else 0
-                
-                # Soma custo da fita nos lados marcados
-                if row.get('C1'): custo += (l/1000) * p_fita
-                if row.get('C2'): custo += (l/1000) * p_fita
-                if row.get('L1'): custo += (c/1000) * p_fita
-                if row.get('L2'): custo += (c/1000) * p_fita
+                if fita and fita != "None" and fita != "":
+                    preco_f_list = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
+                    if len(preco_f_list) > 0:
+                        p_fita = preco_f_list[0]
+                        if row.get('C1'): custo += (l/1000) * p_fita
+                        if row.get('C2'): custo += (l/1000) * p_fita
+                        if row.get('L1'): custo += (c/1000) * p_fita
+                        if row.get('L2'): custo += (c/1000) * p_fita
                 
                 return round(custo, 2)
             except Exception as e:
-                return 0.0 # Caso algo falhe, retorna 0 em vez de travar
+                return f"Erro: {str(e)}"
             
         df['Custo Total'] = df.apply(calcular, axis=1)
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
