@@ -67,41 +67,56 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
+      # --- ABA 3: ORÇAMENTOS (CORREÇÃO FINAL DE CÁLCULO) ---
+elif menu == "Orçamentos":
+    st.header("💰 Gerador de Orçamentos")
+    
+    if st.session_state.df_projeto is not None:
+        df = st.session_state.df_projeto.copy()
+        chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
+        fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
+        
         def calcular(row):
             try:
-                # 1. Limpeza dos números
-                l_str = str(row.get('Largura', '0')).replace(' mm', '').replace(',', '.')
-                c_str = str(row.get('Comprimento', '0')).replace(' mm', '').replace(',', '.')
-                l, c = float(l_str), float(c_str)
+                # Limpeza rigorosa para extrair apenas o número
+                def limpar_num(val):
+                    s = str(val).lower().replace(' mm', '').replace(',', '.').strip()
+                    # Remove qualquer caractere que não seja número ou ponto
+                    s = ''.join([c for c in s if c.isdigit() or c == '.'])
+                    return float(s) if s else 0.0
+
+                l = limpar_num(row.get('Largura', 0))
+                c = limpar_num(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
                 
-                # 2. Diagnóstico de Material
-                mat_selecionado = str(row.get('Material', '')).strip()
-                preco_mat_row = chapas[chapas['Material'].astype(str).str.strip() == mat_selecionado]['Preço_Unit']
+                # Busca Preço Chapa
+                mat = str(row.get('Material', '')).strip()
+                p_mat = chapas[chapas['Material'].astype(str).str.strip() == mat]['Preço_Unit']
+                custo = area * (float(p_mat.values[0]) if not p_mat.empty else 0)
                 
-                if preco_mat_row.empty:
-                    return f"Mat. '{mat_selecionado}' não encontrado"
-                
-                preco_mat = float(preco_mat_row.values[0])
-                custo = area * preco_mat
-                
-                # 3. Diagnóstico de Fita
+                # Busca Preço Fita
                 fita = str(row.get('Fita_Usada', '')).strip()
-                if fita and fita != "None" and fita != "":
-                    preco_f_row = fitas[fitas['Nome Fita'].astype(str).str.strip() == fita]['Custo Total Aplicado (m)']
-                    if not preco_f_row.empty:
-                        p_fita = float(preco_f_row.values[0])
+                if fita and fita != "None":
+                    p_fita_row = fitas[fitas['Nome Fita'].astype(str).str.strip() == fita]['Custo Total Aplicado (m)']
+                    if not p_fita_row.empty:
+                        p_fita = float(p_fita_row.values[0])
                         if row.get('C1'): custo += (l/1000) * p_fita
                         if row.get('C2'): custo += (l/1000) * p_fita
                         if row.get('L1'): custo += (c/1000) * p_fita
                         if row.get('L2'): custo += (c/1000) * p_fita
                 
-                return round(custo, 2)
-            except Exception as e:
-                return f"Erro: {str(e)}"
+                return float(round(custo, 2))
+            except: 
+                return 0.0 # Retorna 0 em caso de falha silenciosa para não quebrar o sum()
             
+        # Aplica o cálculo
         df['Custo Total'] = df.apply(calcular, axis=1)
+        
+        # Exibição
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
-        st.metric("Total do Projeto", f"R$ {df['Custo Total'].sum():,.2f}")
+        
+        # Garante que o total seja numérico
+        total_projeto = df['Custo Total'].astype(float).sum()
+        st.metric("Total do Projeto", f"R$ {total_projeto:,.2f}")
     else:
-        st.warning("⚠️ Carregue e salve os dados no Mapa de Corte primeiro.")
+        st.warning("⚠️ Carregue os dados no Mapa de Corte.")
