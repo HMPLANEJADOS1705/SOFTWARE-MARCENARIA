@@ -34,12 +34,24 @@ if menu == "Cadastro de Insumos":
     # Fitas
     st.subheader("Fitas de Borda")
     df_fitas = st.data_editor(load_data(FILE_FITAS, ['Nome Fita', 'Valor Rolo', 'Metros Rolo', 'Custo Cola/Tempo(m)']), num_rows="dynamic")
-    if st.button("Salvar Fitas"):
-        # Cálculo automático antes de salvar
-        df_fitas['Preço por Metro (Base)'] = df_fitas['Valor Rolo'] / df_fitas['Metros Rolo']
+  # ... dentro da aba de cadastro, na parte de fitas ...
+    if st.button("💾 Salvar Fitas"):
+        # Força a conversão para numérico, transformando erros em 0
+        df_fitas['Valor Rolo'] = pd.to_numeric(df_fitas['Valor Rolo'], errors='coerce').fillna(0)
+        df_fitas['Metros Rolo'] = pd.to_numeric(df_fitas['Metros Rolo'], errors='coerce').fillna(0)
+        df_fitas['Custo Cola/Tempo(m)'] = pd.to_numeric(df_fitas['Custo Cola/Tempo(m)'], errors='coerce').fillna(0)
+        
+        # Agora o cálculo é seguro
+        # Evita divisão por zero se Metros Rolo for 0
+        df_fitas['Preço por Metro (Base)'] = df_fitas.apply(
+            lambda x: x['Valor Rolo'] / x['Metros Rolo'] if x['Metros Rolo'] > 0 else 0, axis=1
+        )
+        
         df_fitas['Custo Total Aplicado (m)'] = df_fitas['Preço por Metro (Base)'] + df_fitas['Custo Cola/Tempo(m)']
+        
         df_fitas.to_csv(FILE_FITAS, index=False)
-        st.success("Fitas salvas!")
+        st.success("Fitas salvas com sucesso!")
+        st.rerun() # Recarrega a página para atualizar a tabela
 # --- MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
