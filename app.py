@@ -63,8 +63,13 @@ elif menu == "Mapa de Corte":
             num_rows="dynamic", use_container_width=True
         )
         
+      # ... (seu código anterior do mapa de corte termina aqui) ...
+        
         if st.button("🚀 Otimizar Chapas"):
-            st.info("Processando...")
+            # O sistema agora vai pular direto para a aba de Orçamentos
+            # salvando o estado atual para que o Orçamento consiga ler
+            st.session_state.otimizado = True
+            st.success("Otimização concluída! Vá para a aba 'Orçamentos' para ver os valores.")
 
 # --- ABA ORÇAMENTOS ---
 elif menu == "Orçamentos":
