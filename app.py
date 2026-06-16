@@ -53,5 +53,31 @@ elif menu == "Mapa de Corte":
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    estoque_salvo = carregar_dados()
-    st.write("Materiais carregados do arquivo:", estoque_salvo['Material'].tolist())
+    
+    if st.session_state.get('df') is not None:
+        df_pecas = st.session_state.df
+        estoque = carregar_dados() # Carrega do seu arquivo .csv
+        
+        # --- Lógica de Cruzamento ---
+        # 1. Fazemos um merge (cruzamento) entre as peças do projeto e os dados do estoque
+        orcamento = df_pecas.merge(estoque, on='Material', how='left')
+        
+        # 2. Cálculo do Custo
+        def calcular_custo(row):
+            area_m2 = (row['Largura'] * row['Comprimento']) / 1000000
+            if row['Tipo'] == 'Chapa':
+                # Custo = (Área da peça * Preço da Chapa) / Área da Chapa Total
+                area_chapa = (row['Largura(mm)'] * row['Comprimento(mm)']) / 1000000
+                return (area_m2 * row['Preço_Unit']) / area_chapa
+            else:
+                # Custo Linear para Pinus (por exemplo)
+                return (row['Comprimento'] / 1000) * row['Preço_Unit']
+
+        orcamento['Custo_Total'] = orcamento.apply(calcular_custo, axis=1)
+        
+        # 3. Exibição do Resultado
+        st.dataframe(orcamento[['Sub-Montagem', 'Descrição', 'Material', 'Custo_Total']])
+        st.metric("💰 Valor Total do Projeto", f"R$ {orcamento['Custo_Total'].sum():,.2f}")
+        
+    else:
+        st.warning("Carregue e processe o CSV no Mapa de Corte primeiro.")
