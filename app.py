@@ -54,7 +54,7 @@ elif menu == "Mapa de Corte":
             st.session_state.df_projeto = temp_df
             st.success("Dados salvos!")
 
-# --- ABA 3: ORÇAMENTOS ---
+# --- ABA 3: ORÇAMENTOS (BLOCO CORRIGIDO) ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     
@@ -65,23 +65,35 @@ elif menu == "Orçamentos":
         
         def calcular(row):
             try:
-                l = float(str(row.get('Largura', 0)).replace(' mm', '').replace(',', '.'))
-                c = float(str(row.get('Comprimento', 0)).replace(' mm', '').replace(',', '.'))
+                # Remove o " mm" e converte para número
+                l_str = str(row.get('Largura', '0')).replace(' mm', '').replace(',', '.')
+                c_str = str(row.get('Comprimento', '0')).replace(' mm', '').replace(',', '.')
+                
+                l = float(l_str)
+                c = float(c_str)
                 area = (l * c) / 1000000
+                
+                # Busca custo da chapa
                 p_mat = chapas[chapas['Material'] == row.get('Material')]['Preço_Unit'].values
                 custo = area * (p_mat[0] if len(p_mat) > 0 else 0)
                 
+                # Busca custo da fita
                 fita = row.get('Fita_Usada')
                 p_fita = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
                 p_fita = p_fita[0] if len(p_fita) > 0 else 0
                 
-                if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
-                if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
-                return custo
-            except: return 0
+                # Soma custo da fita nos lados marcados
+                if row.get('C1'): custo += (l/1000) * p_fita
+                if row.get('C2'): custo += (l/1000) * p_fita
+                if row.get('L1'): custo += (c/1000) * p_fita
+                if row.get('L2'): custo += (c/1000) * p_fita
+                
+                return round(custo, 2)
+            except Exception as e:
+                return 0.0 # Caso algo falhe, retorna 0 em vez de travar
             
         df['Custo Total'] = df.apply(calcular, axis=1)
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
         st.metric("Total do Projeto", f"R$ {df['Custo Total'].sum():,.2f}")
     else:
-        st.warning("⚠️ Carregue um arquivo no Mapa de Corte.")
+        st.warning("⚠️ Carregue e salve os dados no Mapa de Corte.")
