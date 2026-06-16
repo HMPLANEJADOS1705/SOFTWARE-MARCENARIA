@@ -1,14 +1,19 @@
 import streamlit as st
 import pandas as pd
+import os
 
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
-# --- ESTADO INICIAL ---
-# Definimos colunas fixas para evitar erros de colunas faltando
-colunas_estoque = ['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade']
+# --- PERSISTÊNCIA EM ARQUIVO ---
+ARQUIVO_ESTOQUE = "materiais.csv"
 
-if 'estoque' not in st.session_state:
-    st.session_state.estoque = pd.DataFrame(columns=colunas_estoque)
+def carregar_dados():
+    if os.path.exists(ARQUIVO_ESTOQUE):
+        return pd.read_csv(ARQUIVO_ESTOQUE)
+    return pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
+
+def salvar_dados(df):
+    df.to_csv(ARQUIVO_ESTOQUE, index=False)
 
 # --- NAVEGAÇÃO ---
 menu = st.sidebar.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
@@ -16,38 +21,31 @@ menu = st.sidebar.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastr
 # --- ABA DE CADASTRO ---
 if menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
-    # Usamos uma key única e persistente
-    df_cad = st.data_editor(st.session_state.estoque, num_rows="dynamic", use_container_width=True, key="editor_insumos")
+    estoque_atual = carregar_dados()
     
-    if st.button("💾 Salvar Cadastro"):
-        st.session_state.estoque = df_cad
-        st.success("Cadastro salvo com sucesso! Todos os itens foram armazenados.")
+    # Editor
+    novo_df = st.data_editor(estoque_atual, num_rows="dynamic", use_container_width=True, key="editor_fixo")
+    
+    if st.button("💾 Salvar Cadastro Permanentemente"):
+        salvar_dados(novo_df)
+        st.success("Dados salvos no arquivo materiais.csv com sucesso!")
 
 # --- ABA DE MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
-    arquivo = st.file_uploader("Carregue o CSV", type="csv")
+    estoque_salvo = carregar_dados()
+    lista_materiais = estoque_salvo['Material'].dropna().unique().tolist()
     
+    arquivo = st.file_uploader("Carregue o CSV", type="csv")
     if arquivo:
         df = pd.read_csv(arquivo, sep=';')
-        
-        # Filtros e Limpeza
+        # Limpeza e Renomeação
         df = df.drop(columns=[c for c in ["Material Type", "Material Name", "Unnamed: 10"] if c in df.columns], errors='ignore')
+        df = df.rename(columns={"Part #": "Código", "Thickness(T)": "Material", "Width(W)": "Largura", "Length(L)": "Comprimento", "Can Rotate": "Rotação"})
         
-        # Renomeação
-        cols_map = {"Part #": "Código", "Sub-Assembly": "Sub-Montagem", "Description": "Descrição", 
-                    "Copies": "Quantidade", "Thickness(T)": "Material", "Width(W)": "Largura", 
-                    "Length(L)": "Comprimento", "Can Rotate": "Rotação"}
-        df = df.rename(columns=cols_map)
-        
-        # Garantir colunas de fita
         for f in ['C1', 'C2', 'L1', 'L2']:
             if f not in df.columns: df[f] = False
             
-        # Lista de materiais (buscada diretamente do estado atual)
-        lista_materiais = st.session_state.estoque['Material'].dropna().unique().tolist()
-        
-        # Edição
         st.data_editor(df, column_config={
             "Material": st.column_config.SelectboxColumn("Material", options=lista_materiais, required=True),
             "Rotação": st.column_config.SelectboxColumn("Rotação", options=["Sim", "Não"], required=True)
@@ -55,4 +53,5 @@ elif menu == "Mapa de Corte":
 
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    st.write("Materiais salvos na memória:", st.session_state.estoque['Material'].unique().tolist())
+    estoque_salvo = carregar_dados()
+    st.write("Materiais carregados do arquivo:", estoque_salvo['Material'].tolist())
