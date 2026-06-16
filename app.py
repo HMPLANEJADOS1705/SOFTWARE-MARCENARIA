@@ -58,9 +58,12 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-    def calcular_linha(row):
+   # Adicione esta importação no topo do arquivo se não existir:
+        # from difflib import get_close_matches
+
+        def calcular_linha(row):
             try:
-                # Limpeza dos números
+                # Limpeza simples
                 def limpar(val):
                     s = ''.join([c for c in str(val) if c.isdigit() or c == '.'])
                     return float(s) if s else 0.0
@@ -69,29 +72,28 @@ elif menu == "Orçamentos":
                 c = limpar(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
                 
-                # BUSCA FLEXÍVEL: ignora espaços e maiúsculas
-                mat_mapa = str(row.get('Material', '')).lower().strip()
+                # BUSCA INTELIGENTE (Aproximação)
+                mat_mapa = str(row.get('Material', '')).strip()
+                lista_materiais = chapas['Material'].astype(str).tolist()
                 
-                # Cria uma cópia temporária do cadastro com nomes em minúsculo para comparar
-                chapas_temp = chapas.copy()
-                chapas_temp['busca'] = chapas_temp['Material'].astype(str).str.lower().str.strip()
+                # Tenta encontrar o material mais parecido na lista
+                match = get_close_matches(mat_mapa, lista_materiais, n=1, cutoff=0.6)
                 
-                match = chapas_temp[chapas_temp['busca'] == mat_mapa]
+                custo = 0.0
+                if match:
+                    preco = chapas[chapas['Material'] == match[0]]['Preço_Unit'].values[0]
+                    custo = area * float(preco)
                 
-                custo = area * (float(match['Preço_Unit'].values[0]) if not match.empty else 0.0)
+                # Mesma lógica para Fita
+                fita = str(row.get('Fita_Usada', '')).strip()
+                lista_fitas = fitas['Nome Fita'].astype(str).tolist()
+                fita_match = get_close_matches(fita, lista_fitas, n=1, cutoff=0.6)
                 
-                # Mesma lógica para a Fita
-                fita_mapa = str(row.get('Fita_Usada', '')).lower().strip()
-                fitas_temp = fitas.copy()
-                fitas_temp['busca'] = fitas_temp['Nome Fita'].astype(str).str.lower().str.strip()
-                
-                fita_match = fitas_temp[fitas_temp['busca'] == fita_mapa]
-                
-                if not fita_match.empty:
-                    p_fita = float(fita_match['Custo Total Aplicado (m)'].values[0])
+                if fita_match:
+                    p_fita = float(fitas[fitas['Nome Fita'] == fita_match[0]]['Custo Total Aplicado (m)'].values[0])
                     if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
                     if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
                 
                 return float(round(custo, 2))
-            except: 
+            except Exception:
                 return 0.0
