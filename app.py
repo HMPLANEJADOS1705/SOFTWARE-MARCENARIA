@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-
+from difflib import get_close_matches
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
 def carregar_csv(arquivo, colunas):
