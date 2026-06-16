@@ -2,37 +2,44 @@ import streamlit as st
 import pandas as pd
 import os
 
-# --- ARQUIVOS DE DADOS ---
+# --- ARQUIVOS ---
 FILE_CHAPAS = "materiais.csv"
 FILE_FITAS = "fitas.csv"
 
-def load_csv(file, cols):
-    if os.path.exists(file): return pd.read_csv(file)
-    return pd.DataFrame(columns=cols)
+# Função que garante a leitura mesmo que o arquivo tenha colunas diferentes
+def load_data(filename, default_cols):
+    if os.path.exists(filename):
+        df = pd.read_csv(filename)
+        # Se faltar alguma coluna, adicionamos ela vazia para não dar erro
+        for col in default_cols:
+            if col not in df.columns:
+                df[col] = ""
+        return df
+    return pd.DataFrame(columns=default_cols)
 
 # --- NAVEGAÇÃO ---
-st.set_page_config(layout="wide")
 menu = st.sidebar.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
 
-# --- ABA DE CADASTRO ---
+# --- CADASTRO ---
 if menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
     
-    # 1. Cadastro de Fitas com Cálculo Automático
-    st.subheader("🔗 Cadastro de Fitas de Borda")
-    fitas_df = load_csv(FILE_FITAS, ['Nome Fita', 'Valor Rolo', 'Metros Rolo', 'Custo Cola/Tempo(m)'])
+    # Chapas
+    st.subheader("Painéis (Chapas)")
+    df_chapas = st.data_editor(load_data(FILE_CHAPAS, ['Material', 'Tipo', 'Preço_Unit', 'Custo_Unit']), num_rows="dynamic")
+    if st.button("Salvar Chapas"): 
+        df_chapas.to_csv(FILE_CHAPAS, index=False)
+        st.success("Chapas salvas!")
     
-    # Exibe editor para preenchimento
-    fitas_edicao = st.data_editor(fitas_df, num_rows="dynamic", use_container_width=True)
-    
-    if st.button("💾 Salvar Fitas"):
+    # Fitas
+    st.subheader("Fitas de Borda")
+    df_fitas = st.data_editor(load_data(FILE_FITAS, ['Nome Fita', 'Valor Rolo', 'Metros Rolo', 'Custo Cola/Tempo(m)']), num_rows="dynamic")
+    if st.button("Salvar Fitas"):
         # Cálculo automático antes de salvar
-        fitas_edicao['Preço por Metro (Base)'] = fitas_edicao['Valor Rolo'] / fitas_edicao['Metros Rolo']
-        fitas_edicao['Custo Total Aplicado (m)'] = fitas_edicao['Preço por Metro (Base)'] + fitas_edicao['Custo Cola/Tempo(m)']
-        
-        fitas_edicao.to_csv(FILE_FITAS, index=False)
-        st.success("Fitas salvas! O preço aplicado já foi calculado.")
-        st.dataframe(fitas_edicao[['Nome Fita', 'Custo Total Aplicado (m)']])
+        df_fitas['Preço por Metro (Base)'] = df_fitas['Valor Rolo'] / df_fitas['Metros Rolo']
+        df_fitas['Custo Total Aplicado (m)'] = df_fitas['Preço por Metro (Base)'] + df_fitas['Custo Cola/Tempo(m)']
+        df_fitas.to_csv(FILE_FITAS, index=False)
+        st.success("Fitas salvas!")
 # --- MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
