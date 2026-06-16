@@ -27,17 +27,18 @@ if menu == "Cadastro de Insumos":
 # --- ABA MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
+    
+    # Define as listas ANTES de qualquer uso, mesmo que vazias
+    lista_mat = load_csv_data("materiais.csv", ['Material'])['Material'].unique().tolist()
+    lista_fitas = load_csv_data("fitas.csv", ['Nome Fita'])['Nome Fita'].unique().tolist()
+    
     arquivo = st.file_uploader("Carregue o CSV", type="csv")
     
     if arquivo:
-        # Lê e armazena no estado global, para nunca perder os dados ao trocar de aba
         df = pd.read_csv(arquivo, sep=';')
         df = df.rename(columns={"Part #": "Código", "Thickness(T)": "Material", "Width(W)": "Largura", "Length(L)": "Comprimento", "Description": "Descrição"})
         
         # Garante colunas de fita e seleção
-        lista_fitas = load_csv_data("fitas.csv", ['Nome Fita'])['Nome Fita'].unique().tolist()
-        lista_mat = load_csv_data("materiais.csv", ['Material'])['Material'].unique().tolist()
-        
         if 'Fita_Usada' not in df.columns: df['Fita_Usada'] = ""
         for f in ['C1', 'C2', 'L1', 'L2']:
             if f not in df.columns: df[f] = False
@@ -45,6 +46,7 @@ elif menu == "Mapa de Corte":
         st.session_state.df_projeto = df
 
     if st.session_state.df_projeto is not None:
+        # Usa as listas definidas no início do bloco
         st.session_state.df_projeto = st.data_editor(
             st.session_state.df_projeto, 
             column_config={
@@ -63,12 +65,11 @@ elif menu == "Orçamentos":
         df_chapas = load_csv_data("materiais.csv", ['Material', 'Preço_Unit'])
         df_fitas = load_csv_data("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        # Lógica de cálculo blindada
         def calcular(row):
             try:
-                # Trata string "494 mm" para numero 494
-                larg = float(str(row['Largura']).replace(' mm', '').replace(',', '.'))
-                comp = float(str(row['Comprimento']).replace(' mm', '').replace(',', '.'))
+                # Conversão segura removendo " mm" caso exista
+                larg = float(str(row.get('Largura', 0)).replace(' mm', '').replace(',', '.'))
+                comp = float(str(row.get('Comprimento', 0)).replace(' mm', '').replace(',', '.'))
                 area = (larg * comp) / 1000000
                 
                 # Custo
@@ -76,15 +77,19 @@ elif menu == "Orçamentos":
                 custo = area * (preco_mat[0] if len(preco_mat) > 0 else 0)
                 
                 # Fita
-                preco_f = df_fitas[df_fitas['Nome Fita'] == row.get('Fita_Usada')]['Custo Total Aplicado (m)'].values
+                fita_selecionada = row.get('Fita_Usada')
+                preco_f = df_fitas[df_fitas['Nome Fita'] == fita_selecionada]['Custo Total Aplicado (m)'].values
                 preco_f = preco_f[0] if len(preco_f) > 0 else 0
-                if row.get('C1') or row.get('C2'): custo += (larg/1000) * preco_f
-                if row.get('L1') or row.get('L2'): custo += (comp/1000) * preco_f
+                
+                if row.get('C1'): custo += (larg/1000) * preco_f
+                if row.get('C2'): custo += (larg/1000) * preco_f
+                if row.get('L1'): custo += (comp/1000) * preco_f
+                if row.get('L2'): custo += (comp/1000) * preco_f
                 return custo
             except: return 0
 
         df_calc['Custo'] = df_calc.apply(calcular, axis=1)
         st.dataframe(df_calc[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo']])
-        st.metric("Total", f"R$ {df_calc['Custo'].sum():,.2f}")
+        st.metric("Total do Projeto", f"R$ {df_calc['Custo'].sum():,.2f}")
     else:
         st.warning("⚠️ Vá ao Mapa de Corte e carregue um arquivo.")
