@@ -2,49 +2,50 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(layout="wide", page_title="Marcenaria Pro")
+# --- ARQUIVOS DE DADOS ---
+FILE_CHAPAS = "materiais.csv"
+FILE_FITAS = "fitas.csv"
 
-# --- PERSISTÊNCIA ---
-ARQUIVO_ESTOQUE = "materiais.csv"
+def load_csv(file, cols):
+    if os.path.exists(file): return pd.read_csv(file)
+    return pd.DataFrame(columns=cols)
 
-def carregar_dados():
-    if os.path.exists(ARQUIVO_ESTOQUE):
-        return pd.read_csv(ARQUIVO_ESTOQUE)
-    return pd.DataFrame(columns=['Material', 'Tipo', 'Largura(mm)', 'Comprimento(mm)', 'Preço_Unit', 'Unidade'])
-
-# --- MENU ---
+# --- NAVEGAÇÃO ---
+st.set_page_config(layout="wide")
 menu = st.sidebar.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
 
-# --- ABA DE CADASTRO ---
+# --- CADASTRO ---
 if menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
-    estoque_atual = carregar_dados()
-    # O data_editor agora tem num_rows="dynamic", o que permite o botão "-" para deletar linhas
-    novo_estoque = st.data_editor(estoque_atual, num_rows="dynamic", use_container_width=True)
-    if st.button("💾 Salvar Cadastro"):
-        novo_estoque.to_csv(ARQUIVO_ESTOQUE, index=False)
-        st.success("Dados salvos!")
+    
+    # Chapas
+    st.subheader("Painéis (Chapas)")
+    df_chapas = st.data_editor(load_csv(FILE_CHAPAS, ['Material', 'Tipo', 'Preço_Unit', 'Custo_Unit']), num_rows="dynamic", key="chapas")
+    if st.button("Salvar Chapas"): df_chapas.to_csv(FILE_CHAPAS, index=False)
+    
+    # Fitas
+    st.subheader("Fitas de Borda")
+    df_fitas = st.data_editor(load_csv(FILE_FITAS, ['Nome Fita', 'Preço_Metro', 'Custo_Aplicacao']), num_rows="dynamic", key="fitas")
+    if st.button("Salvar Fitas"): df_fitas.to_csv(FILE_FITAS, index=False)
 
-# --- ABA DE MAPA DE CORTE ---
+# --- MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
-    arquivo = st.file_uploader("Carregue o CSV", type="csv")
+    arquivo = st.file_uploader("Upload CSV", type="csv")
     if arquivo:
         df = pd.read_csv(arquivo, sep=';')
-        # ... (seu código de limpeza e renomeação) ...
-        # IMPORTANTE: st.data_editor com num_rows="dynamic" permite que você delete linhas
+        # Limpeza e Fitas
+        for f in ['C1', 'C2', 'L1', 'L2']: df[f] = False
         st.session_state.df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-        
-        if st.button("🚀 Otimizar Chapas"):
-            st.info("Motor de otimização acionado...")
 
-# --- ABA DE ORÇAMENTOS ---
+# --- ORÇAMENTOS ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    margem = st.number_input("Margem de Lucro (%)", min_value=0, value=30)
+    margem = st.number_input("Margem de Lucro (%)", value=30)
     
-    if st.session_state.get('df') is not None:
-        # Aqui cruzamos com o estoque usando o dropdown que você já preencheu
-        # O cálculo usará o preço do material que você selecionou na lista suspensa
-        st.write(f"Margem aplicada: {margem}%")
-        # ... (lógica de cálculo do custo) ...
+    if 'df' in st.session_state:
+        # Lógica: Cruzar peças do projeto com custos cadastrados
+        # 1. Calcular área e custo de chapa
+        # 2. Calcular metros de fita (C1+C2+L1+L2 == True) * (Preço + Custo_Aplicacao)
+        # 3. Aplicar Margem
+        st.write("Orçamento detalhado será gerado aqui.")
