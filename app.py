@@ -27,18 +27,44 @@ if menu == "Cadastro de Insumos":
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
     arquivo = st.file_uploader("Carregue o CSV", type="csv")
+    
     if arquivo:
+        # 1. Leitura
         df = pd.read_csv(arquivo, sep=';')
-        # Limpeza agressiva: remove tudo que não queremos
-        colunas_indesejadas = ["Material Type", "Material Name", "Unnamed: 10"]
-        df = df.drop(columns=[c for c in colunas_indesejadas if c in df.columns], errors='ignore')
         
-        # Renomeação segura
-        rename_map = {"Part #": "Código", "Thickness(T)": "Material", "Width(W)": "Largura", "Length(L)": "Comprimento"}
-        df = df.rename(columns=rename_map)
+        # 2. Tradução Inteligente (Aceita nomes originais OU já traduzidos)
+        mapa_de_nomes = {
+            "Part #": "Código", "Thickness(T)": "Material", 
+            "Width(W)": "Largura", "Length(L)": "Comprimento",
+            "Copies": "Quantidade", "Description": "Descrição",
+            "Sub-Assembly": "Sub-Montagem"
+        }
+        df = df.rename(columns=mapa_de_nomes)
         
-        st.session_state.df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-        if st.button("🚀 Otimizar Chapas"): st.info("Otimizando...")
+        # 3. Garante que as colunas essenciais existam
+        colunas_necessarias = ["Código", "Sub-Montagem", "Descrição", "Quantidade", "Material", "Largura", "Comprimento"]
+        for col in colunas_necessarias:
+            if col not in df.columns:
+                df[col] = "" # Cria a coluna vazia se não existir
+        
+        # 4. Garante colunas de fita
+        for f in ['C1', 'C2', 'L1', 'L2']:
+            if f not in df.columns:
+                df[f] = False
+        
+        # 5. Lista de materiais
+        df_chapas = load_csv(FILE_CHAPAS, ['Material'])
+        lista_mat = df_chapas['Material'].dropna().unique().tolist()
+        
+        # 6. Exibição
+        st.session_state.df = st.data_editor(
+            df[['Código', 'Sub-Montagem', 'Descrição', 'Quantidade', 'Material', 'Largura', 'Comprimento', 'C1', 'C2', 'L1', 'L2']],
+            column_config={"Material": st.column_config.SelectboxColumn("Material", options=lista_mat)},
+            num_rows="dynamic", use_container_width=True
+        )
+        
+        if st.button("🚀 Otimizar Chapas"):
+            st.info("Processando...")
 
 # --- ABA ORÇAMENTOS ---
 elif menu == "Orçamentos":
