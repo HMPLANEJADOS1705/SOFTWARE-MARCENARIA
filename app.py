@@ -69,24 +69,36 @@ elif menu == "Orçamentos":
         
         def calcular(row):
             try:
-                # Limpeza de texto antes de converter para número
+                # 1. Limpeza dos números
                 l_str = str(row.get('Largura', '0')).replace(' mm', '').replace(',', '.')
                 c_str = str(row.get('Comprimento', '0')).replace(' mm', '').replace(',', '.')
                 l, c = float(l_str), float(c_str)
-                
                 area = (l * c) / 1000000
-                p_mat = chapas[chapas['Material'] == row.get('Material')]['Preço_Unit'].values
-                custo = area * (p_mat[0] if len(p_mat) > 0 else 0)
                 
-                fita = row.get('Fita_Usada')
-                p_fita = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
-                p_fita = p_fita[0] if len(p_fita) > 0 else 0
+                # 2. Diagnóstico de Material
+                mat_selecionado = str(row.get('Material', '')).strip()
+                preco_mat_row = chapas[chapas['Material'].astype(str).str.strip() == mat_selecionado]['Preço_Unit']
                 
-                if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
-                if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
+                if preco_mat_row.empty:
+                    return f"Mat. '{mat_selecionado}' não encontrado"
+                
+                preco_mat = float(preco_mat_row.values[0])
+                custo = area * preco_mat
+                
+                # 3. Diagnóstico de Fita
+                fita = str(row.get('Fita_Usada', '')).strip()
+                if fita and fita != "None" and fita != "":
+                    preco_f_row = fitas[fitas['Nome Fita'].astype(str).str.strip() == fita]['Custo Total Aplicado (m)']
+                    if not preco_f_row.empty:
+                        p_fita = float(preco_f_row.values[0])
+                        if row.get('C1'): custo += (l/1000) * p_fita
+                        if row.get('C2'): custo += (l/1000) * p_fita
+                        if row.get('L1'): custo += (c/1000) * p_fita
+                        if row.get('L2'): custo += (c/1000) * p_fita
+                
                 return round(custo, 2)
-            except: 
-                return 0.0
+            except Exception as e:
+                return f"Erro: {str(e)}"
             
         df['Custo Total'] = df.apply(calcular, axis=1)
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
