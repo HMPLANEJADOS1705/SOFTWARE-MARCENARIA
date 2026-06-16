@@ -34,12 +34,14 @@ elif menu == "Mapa de Corte":
         
         lista_mat = load_csv_data("materiais.csv", ['Material'])['Material'].tolist()
         
+       # --- O SEGREDO ESTÁ AQUI: num_rows="dynamic" ---
         st.session_state.df = st.data_editor(
             df, 
             column_config={
                 "Material": st.column_config.SelectboxColumn("Material", options=lista_mat),
                 "Fita_Usada": st.column_config.SelectboxColumn("Fita", options=lista_fitas)
             },
+            num_rows="dynamic", # <--- ISSO HABILITA ADICIONAR E REMOVER LINHAS
             use_container_width=True
         )
         if st.button("🚀 Otimizar"): 
