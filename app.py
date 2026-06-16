@@ -4,14 +4,15 @@ import os
 
 st.set_page_config(layout="wide", page_title="Marcenaria Pro")
 
-# --- FUNÇÕES DE PERSISTÊNCIA ---
+# --- FUNÇÕES DE APOIO ---
 def carregar_csv(arquivo, colunas):
     if os.path.exists(arquivo):
         return pd.read_csv(arquivo)
     return pd.DataFrame(columns=colunas)
 
-# Inicialização do Estado
-if 'df_projeto' not in st.session_state: st.session_state.df_projeto = None
+# --- INICIALIZAÇÃO DE ESTADO ---
+if 'df_projeto' not in st.session_state: 
+    st.session_state.df_projeto = None
 
 menu = st.sidebar.radio("Navegação", ["Cadastro de Insumos", "Mapa de Corte", "Orçamentos"])
 
@@ -21,11 +22,15 @@ if menu == "Cadastro de Insumos":
     
     st.subheader("Chapas")
     df_chapas = st.data_editor(carregar_csv("materiais.csv", ['Material', 'Preço_Unit']), num_rows="dynamic", key="c_chapas")
-    if st.button("Salvar Chapas"): df_chapas.to_csv("materiais.csv", index=False)
+    if st.button("Salvar Chapas"): 
+        df_chapas.to_csv("materiais.csv", index=False)
+        st.success("Chapas salvas!")
     
     st.subheader("Fitas de Borda")
     df_fitas = st.data_editor(carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)']), num_rows="dynamic", key="c_fitas")
-    if st.button("Salvar Fitas"): df_fitas.to_csv("fitas.csv", index=False)
+    if st.button("Salvar Fitas"): 
+        df_fitas.to_csv("fitas.csv", index=False)
+        st.success("Fitas salvas!")
 
 # --- ABA 2: MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
@@ -44,7 +49,6 @@ elif menu == "Mapa de Corte":
         lista_fitas = carregar_csv("fitas.csv", ['Nome Fita'])['Nome Fita'].unique().tolist()
         if 'Fita_Usada' not in st.session_state.df_projeto.columns: st.session_state.df_projeto['Fita_Usada'] = ""
         
-        # Editor isolado
         temp_df = st.data_editor(st.session_state.df_projeto, key="tabela_corte", num_rows="dynamic", column_config={
             "Material": st.column_config.SelectboxColumn(options=lista_mat),
             "Fita_Usada": st.column_config.SelectboxColumn(options=lista_fitas)
@@ -54,7 +58,7 @@ elif menu == "Mapa de Corte":
             st.session_state.df_projeto = temp_df
             st.success("Dados salvos!")
 
-# --- ABA 3: ORÇAMENTOS (BLOCO CORRIGIDO) ---
+# --- ABA 3: ORÇAMENTOS ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     
@@ -63,40 +67,29 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-      def calcular(row):
+        def calcular(row):
             try:
-                # 1. Limpeza
-                l = float(str(row.get('Largura', 0)).replace(' mm', '').replace(',', '.'))
-                c = float(str(row.get('Comprimento', 0)).replace(' mm', '').replace(',', '.'))
+                # Limpeza de texto antes de converter para número
+                l_str = str(row.get('Largura', '0')).replace(' mm', '').replace(',', '.')
+                c_str = str(row.get('Comprimento', '0')).replace(' mm', '').replace(',', '.')
+                l, c = float(l_str), float(c_str)
+                
                 area = (l * c) / 1000000
+                p_mat = chapas[chapas['Material'] == row.get('Material')]['Preço_Unit'].values
+                custo = area * (p_mat[0] if len(p_mat) > 0 else 0)
                 
-                # 2. Busca Preço Chapa
-                mat_selecionado = row.get('Material')
-                # Filtra o preço unitário
-                preco_mat_list = chapas[chapas['Material'] == mat_selecionado]['Preço_Unit'].values
-                
-                if len(preco_mat_list) == 0:
-                    return f"Erro: Mat. {mat_selecionado} não encontrado"
-                
-                custo = area * preco_mat_list[0]
-                
-                # 3. Busca Preço Fita
                 fita = row.get('Fita_Usada')
-                if fita and fita != "None" and fita != "":
-                    preco_f_list = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
-                    if len(preco_f_list) > 0:
-                        p_fita = preco_f_list[0]
-                        if row.get('C1'): custo += (l/1000) * p_fita
-                        if row.get('C2'): custo += (l/1000) * p_fita
-                        if row.get('L1'): custo += (c/1000) * p_fita
-                        if row.get('L2'): custo += (c/1000) * p_fita
+                p_fita = fitas[fitas['Nome Fita'] == fita]['Custo Total Aplicado (m)'].values
+                p_fita = p_fita[0] if len(p_fita) > 0 else 0
                 
+                if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
+                if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
                 return round(custo, 2)
-            except Exception as e:
-                return f"Erro: {str(e)}"
+            except: 
+                return 0.0
             
         df['Custo Total'] = df.apply(calcular, axis=1)
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
         st.metric("Total do Projeto", f"R$ {df['Custo Total'].sum():,.2f}")
     else:
-        st.warning("⚠️ Carregue e salve os dados no Mapa de Corte.")
+        st.warning("⚠️ Carregue e salve os dados no Mapa de Corte primeiro.")
