@@ -67,14 +67,40 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        def calcular(row):
+       def calcular_linha(row):
             try:
-                # Limpeza rigorosa para extrair apenas o número
-                def limpar_num(val):
-                    s = str(val).lower().replace(' mm', '').replace(',', '.').strip()
-                    # Remove qualquer caractere que não seja número ou ponto
-                    s = ''.join([c for c in s if c.isdigit() or c == '.'])
+                # Limpeza
+                def limpar(valor):
+                    s = ''.join([c for c in str(valor) if c.isdigit() or c == '.'])
                     return float(s) if s else 0.0
+
+                l = limpar(row.get('Largura', 0))
+                c = limpar(row.get('Comprimento', 0))
+                area = (l * c) / 1000000
+                
+                # Busca Preço Chapa
+                mat_mapa = str(row.get('Material', '')).strip().lower()
+                # Procurar ignorando maiúsculas/minúsculas e espaços
+                match = chapas[chapas['Material'].astype(str).str.strip().str.lower() == mat_mapa]
+                
+                if match.empty:
+                    return "Mat. Incompatível"
+                
+                p_mat = float(match['Preço_Unit'].values[0])
+                custo = area * p_mat
+                
+                # Busca Fita
+                fita = str(row.get('Fita_Usada', '')).strip()
+                if fita and fita != "None" and fita != "":
+                    fita_match = fitas[fitas['Nome Fita'].astype(str).str.strip() == fita]
+                    if not fita_match.empty:
+                        p_fita = float(fita_match['Custo Total Aplicado (m)'].values[0])
+                        if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
+                        if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
+                
+                return round(custo, 2)
+            except Exception as e:
+                return f"Erro: {e}"
 
                 l = limpar_num(row.get('Largura', 0))
                 c = limpar_num(row.get('Comprimento', 0))
