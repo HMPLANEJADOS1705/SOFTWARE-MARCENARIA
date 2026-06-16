@@ -58,26 +58,35 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        def calcular_linha(row):
+       def calcular_linha(row):
             try:
-                def limpar(val):
-                    s = ''.join([c for c in str(val) if c.isdigit() or c == '.'])
-                    return float(s) if s else 0.0
-                l, c = limpar(row.get('Largura', 0)), limpar(row.get('Comprimento', 0))
+                # Conversão direta para float dos números puros
+                l = float(row.get('Largura', 0))
+                c = float(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
+                
+                # Busca material (usando str.strip() para evitar espaços)
                 mat = str(row.get('Material', '')).strip()
+                # Localiza a linha correspondente no cadastro
                 p_mat = chapas[chapas['Material'].astype(str).str.strip() == mat]['Preço_Unit']
+                
+                # Cálculo base: área * preço
                 custo = area * (float(p_mat.values[0]) if not p_mat.empty else 0.0)
+                
+                # Busca Fita
                 fita = str(row.get('Fita_Usada', '')).strip()
-                if fita and fita != "None":
+                if fita and fita != "None" and fita != "":
                     p_fita = fitas[fitas['Nome Fita'].astype(str).str.strip() == fita]['Custo Total Aplicado (m)']
                     if not p_fita.empty:
                         val_f = float(p_fita.values[0])
                         if row.get('C1') or row.get('C2'): custo += (l/1000) * val_f
                         if row.get('L1') or row.get('L2'): custo += (c/1000) * val_f
-                return round(custo, 2)
-            except: return 0.0
-        
+                
+                return float(round(custo, 2))
+            except Exception:
+                return 0.0
+
+        # Aplica o cálculo
         df['Custo Total'] = df.apply(calcular_linha, axis=1)
         st.dataframe(df[['Código', 'Descrição', 'Material', 'Fita_Usada', 'Custo Total']])
-        st.metric("Total", f"R$ {df['Custo Total'].sum():,.2f}")
+        st.metric("Total do Projeto", f"R$ {df['Custo Total'].astype(float).sum():,.2f}")
