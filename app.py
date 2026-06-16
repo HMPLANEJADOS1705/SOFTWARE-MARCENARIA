@@ -67,7 +67,54 @@ elif menu == "Mapa de Corte":
             },
             num_rows="dynamic", use_container_width=True
         )
+        # --- ABA ORÇAMENTOS (Cole isto abaixo do final do bloco do Mapa de Corte) ---
+elif menu == "Orçamentos":
+    st.header("💰 Gerador de Orçamentos")
+    
+    # 1. Margem de Lucro
+    margem = st.number_input("Margem de Lucro sobre o Custo (%)", min_value=0, value=30)
+    
+    if 'df' in st.session_state and st.session_state.df is not None:
+        df_projeto = st.session_state.df
+        df_chapas = load_csv(FILE_CHAPAS, ['Material', 'Preço_Unit'])
+        df_fitas = load_csv(FILE_FITAS, ['Nome Fita', 'Custo Total Aplicado (m)'])
         
+        # Merge para trazer preço da chapa
+        df_calc = df_projeto.merge(df_chapas, on='Material', how='left')
+        
+        # 2. Lógica de cálculo unificada
+        def calcular_linha(row):
+            # Custo da Chapa
+            area_m2 = (row['Largura'] * row['Comprimento']) / 1000000
+            custo_chapa = area_m2 * row.get('Preço_Unit', 0)
+            
+            # Custo da Fita
+            custo_fita_total = 0
+            if not df_fitas.empty:
+                # Usa a primeira fita cadastrada como base no momento
+                preco_fita = df_fitas.iloc[0]['Custo Total Aplicado (m)'] 
+                if row.get('C1'): custo_fita_total += (row['Largura']/1000) * preco_fita
+                if row.get('C2'): custo_fita_total += (row['Largura']/1000) * preco_fita
+                if row.get('L1'): custo_fita_total += (row['Comprimento']/1000) * preco_fita
+                if row.get('L2'): custo_fita_total += (row['Comprimento']/1000) * preco_fita
+            
+            return custo_chapa + custo_fita_total
+
+        df_calc['Custo_Item'] = df_calc.apply(calcular_linha, axis=1)
+        
+        # 3. Totais
+        custo_total = df_calc['Custo_Item'].sum()
+        valor_venda = custo_total * (1 + (margem / 100))
+        
+        # Exibição
+        st.metric("Custo de Produção", f"R$ {custo_total:,.2f}")
+        st.metric("Preço Final (com margem)", f"R$ {valor_venda:,.2f}")
+        
+        st.subheader("Detalhamento por Peça")
+        st.dataframe(df_calc[['Sub-Montagem', 'Descrição', 'Material', 'Custo_Item']])
+        
+    else:
+        st.warning("Você precisa processar um arquivo na aba 'Mapa de Corte' primeiro.")
         # 6. BOTÃO DE OTIMIZAÇÃO (Aqui ele aparece abaixo da tabela)
         if st.button("🚀 Otimizar Chapas"):
             st.info("Otimizando chapas e gerando relatório de retalhos...")
