@@ -58,16 +58,7 @@ elif menu == "Mapa de Corte":
             st.session_state.df_projeto = temp_df
             st.success("Dados salvos!")
 
-# --- ABA 3: ORÇAMENTOS ---
-elif menu == "Orçamentos":
-    st.header("💰 Gerador de Orçamentos")
-    
-    if st.session_state.df_projeto is not None:
-        df = st.session_state.df_projeto.copy()
-        chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
-        fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
-        
-      # --- ABA 3: ORÇAMENTOS (CORREÇÃO FINAL DE CÁLCULO) ---
+# --- ABA 3: ORÇAMENTOS (CORREÇÃO FINAL DE CÁLCULO) ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     
