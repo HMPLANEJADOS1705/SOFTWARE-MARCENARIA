@@ -14,20 +14,25 @@ def load_csv(file, cols):
 st.set_page_config(layout="wide")
 menu = st.sidebar.radio("Navegação", ["Mapa de Corte", "Orçamentos", "Cadastro de Insumos"])
 
-# --- CADASTRO ---
+# --- ABA DE CADASTRO ---
 if menu == "Cadastro de Insumos":
     st.header("📦 Cadastro de Insumos")
     
-    # Chapas
-    st.subheader("Painéis (Chapas)")
-    df_chapas = st.data_editor(load_csv(FILE_CHAPAS, ['Material', 'Tipo', 'Preço_Unit', 'Custo_Unit']), num_rows="dynamic", key="chapas")
-    if st.button("Salvar Chapas"): df_chapas.to_csv(FILE_CHAPAS, index=False)
+    # 1. Cadastro de Fitas com Cálculo Automático
+    st.subheader("🔗 Cadastro de Fitas de Borda")
+    fitas_df = load_csv(FILE_FITAS, ['Nome Fita', 'Valor Rolo', 'Metros Rolo', 'Custo Cola/Tempo(m)'])
     
-    # Fitas
-    st.subheader("Fitas de Borda")
-    df_fitas = st.data_editor(load_csv(FILE_FITAS, ['Nome Fita', 'Preço_Metro', 'Custo_Aplicacao']), num_rows="dynamic", key="fitas")
-    if st.button("Salvar Fitas"): df_fitas.to_csv(FILE_FITAS, index=False)
-
+    # Exibe editor para preenchimento
+    fitas_edicao = st.data_editor(fitas_df, num_rows="dynamic", use_container_width=True)
+    
+    if st.button("💾 Salvar Fitas"):
+        # Cálculo automático antes de salvar
+        fitas_edicao['Preço por Metro (Base)'] = fitas_edicao['Valor Rolo'] / fitas_edicao['Metros Rolo']
+        fitas_edicao['Custo Total Aplicado (m)'] = fitas_edicao['Preço por Metro (Base)'] + fitas_edicao['Custo Cola/Tempo(m)']
+        
+        fitas_edicao.to_csv(FILE_FITAS, index=False)
+        st.success("Fitas salvas! O preço aplicado já foi calculado.")
+        st.dataframe(fitas_edicao[['Nome Fita', 'Custo Total Aplicado (m)']])
 # --- MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
