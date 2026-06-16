@@ -74,12 +74,12 @@ elif menu == "Mapa de Corte":
 # --- ABA ORÇAMENTOS ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    if 'df' in st.session_state:
-        df_calc = st.session_state.df.copy()
-        # Filtra apenas se as colunas necessárias existirem
-        if 'Material' in df_calc.columns and 'Largura' in df_calc.columns:
-            st.dataframe(df_calc)
-        else:
-            st.error("O arquivo carregado não contém as colunas 'Material', 'Largura' e 'Comprimento'. Verifique o arquivo.")
+    
+    # Verifica se o usuário já clicou no botão de otimizar
+    if 'otimizado' not in st.session_state:
+        st.warning("⚠️ Você precisa ir no 'Mapa de Corte' e clicar em '🚀 Otimizar Chapas' antes de ver o orçamento.")
     else:
-        st.warning("Carregue o CSV no Mapa de Corte primeiro.")
+        # (Aqui entra todo o seu código de cálculo que fizemos antes)
+        # O sistema agora tem certeza que o Mapa de Corte foi processado
+        margem = st.number_input("Margem de Lucro (%)", value=30)
+        # ... (restante do código de cálculo) ...
