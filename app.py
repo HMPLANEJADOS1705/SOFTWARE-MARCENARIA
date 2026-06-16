@@ -52,15 +52,49 @@ if menu == "Cadastro de Insumos":
         df_fitas.to_csv(FILE_FITAS, index=False)
         st.success("Fitas salvas com sucesso!")
         st.rerun() # Recarrega a página para atualizar a tabela
-# --- MAPA DE CORTE ---
+# --- ABA DE MAPA DE CORTE ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
-    arquivo = st.file_uploader("Upload CSV", type="csv")
+    arquivo = st.file_uploader("Carregue o CSV (do SketchUp)", type="csv")
+    
     if arquivo:
+        # 1. Leitura
         df = pd.read_csv(arquivo, sep=';')
-        # Limpeza e Fitas
-        for f in ['C1', 'C2', 'L1', 'L2']: df[f] = False
-        st.session_state.df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+        
+        # 2. Limpeza Imediata (Remove as colunas indesejadas)
+        cols_to_drop = ["Material Type", "Material Name", "Unnamed: 10"]
+        df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors='ignore')
+        
+        # 3. Renomeação (Mantém o padrão em Português)
+        rename_map = {
+            "Part #": "Código",
+            "Sub-Assembly": "Sub-Montagem",
+            "Description": "Descrição",
+            "Copies": "Quantidade",
+            "Thickness(T)": "Material",
+            "Width(W)": "Largura",
+            "Length(L)": "Comprimento",
+            "Can Rotate": "Rotação"
+        }
+        df = df.rename(columns=rename_map)
+        
+        # 4. Garantir colunas de fita
+        for f in ['C1', 'C2', 'L1', 'L2']:
+            if f not in df.columns: df[f] = False
+            
+        # 5. Lista suspensa (Puxa os materiais do arquivo 'materiais.csv' que já salvamos)
+        lista_materiais = load_csv(FILE_CHAPAS, ['Material'])['Material'].dropna().unique().tolist()
+        
+        # 6. Exibição (Configuração visual)
+        st.session_state.df = st.data_editor(
+            df, 
+            column_config={
+                "Material": st.column_config.SelectboxColumn("Material", options=lista_materiais, required=True),
+                "Rotação": st.column_config.SelectboxColumn("Rotação", options=["Sim", "Não"], required=True)
+            },
+            num_rows="dynamic",
+            use_container_width=True
+        )
 
 # --- ORÇAMENTOS ---
 elif menu == "Orçamentos":
