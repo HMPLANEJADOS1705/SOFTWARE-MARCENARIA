@@ -27,30 +27,47 @@ if menu == "Cadastro de Insumos":
         df_fitas.to_csv("fitas.csv", index=False)
         st.success("Salvo!")
 
+# --- ABA 2: MAPA DE CORTE (VERSÃO CORRIGIDA E ROBUSTA) ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
+    
+    # Botão para limpar a memória se algo der errado
+    if st.button("🔄 Reiniciar/Limpar Projeto"):
+        st.session_state.df_projeto = None
+        st.rerun()
+
     if st.session_state.df_projeto is None:
-        arquivo = st.file_uploader("Carregue o CSV", type="csv")
+        arquivo = st.file_uploader("Carregue o CSV do SketchUp", type="csv")
         if arquivo:
             df = pd.read_csv(arquivo, sep=';')
             df = df.rename(columns={"Part #": "Código", "Thickness(T)": "Material", "Width(W)": "Largura", "Length(L)": "Comprimento", "Description": "Descrição"})
+            # Garante que as colunas de fita existam ao carregar
+            df['Fita_Usada'] = ""
+            df['C1'] = False; df['C2'] = False; df['L1'] = False; df['L2'] = False
             st.session_state.df_projeto = df
             st.rerun()
     
     if st.session_state.df_projeto is not None:
+        # Carrega insumos para o Selectbox
         lista_mat = carregar_csv("materiais.csv", ['Material'])['Material'].unique().tolist()
         lista_fitas = carregar_csv("fitas.csv", ['Nome Fita'])['Nome Fita'].unique().tolist()
+        
+        # Garante que as colunas essenciais existam
         if 'Fita_Usada' not in st.session_state.df_projeto.columns: st.session_state.df_projeto['Fita_Usada'] = ""
         
+        # Editor
         temp_df = st.data_editor(st.session_state.df_projeto, key="tabela_corte", num_rows="dynamic", column_config={
             "Material": st.column_config.SelectboxColumn(options=lista_mat),
-            "Fita_Usada": st.column_config.SelectboxColumn(options=lista_fitas)
+            "Fita_Usada": st.column_config.SelectboxColumn(options=lista_fitas),
+            "C1": st.column_config.CheckboxColumn(),
+            "C2": st.column_config.CheckboxColumn(),
+            "L1": st.column_config.CheckboxColumn(),
+            "L2": st.column_config.CheckboxColumn()
         }, use_container_width=True)
         
         if st.button("✅ Confirmar e Salvar"):
             st.session_state.df_projeto = temp_df
-            st.rerun()
-
+            st.success("Dados salvos no mapa de corte!")
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
