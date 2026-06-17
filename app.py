@@ -63,23 +63,30 @@ elif menu == "Orçamentos":
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
         def calculate_row(row):
-            try:
-                def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
-                l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
-                area = (l * w) / 1000000
+            # 1. Limpeza
+            def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
+            l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
+            area = (l * w) / 1000000
+            
+            # 2. Busca do Material
+            mat = str(row.get('Material', '')).strip().lower()
+            board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
+            
+            if board_match.empty:
+                return f"Nao achei: {mat}"  # <--- ISSO VAI APARECER NA TABELA
+            
+            cost = area * float(board_match['Preço_Unit'].values[0])
+            
+            # 3. Busca da Fita
+            tape = str(row.get('Fita_Usada', '')).strip().lower()
+            tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+            
+            if not tape_match.empty:
+                p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
+                if row.get('C1') or row.get('C2'): cost += (l/1000) * p_tape
+                if row.get('L1') or row.get('L2'): cost += (w/1000) * p_tape
                 
-                mat = str(row.get('Material', '')).strip().lower()
-                board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
-                cost = area * (float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0)
-                
-                tape = str(row.get('Fita_Usada', '')).strip().lower()
-                tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
-                if not tape_match.empty:
-                    p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1') or row.get('C2'): cost += (l/1000) * p_tape
-                    if row.get('L1') or row.get('L2'): cost += (w/1000) * p_tape
-                return round(cost, 2)
-            except: return 0.0
+            return round(cost, 2)
             
         df['Total Cost'] = df.apply(calculate_row, axis=1)
         st.dataframe(df)
