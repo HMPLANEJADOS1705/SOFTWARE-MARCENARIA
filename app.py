@@ -86,7 +86,7 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-     def calcular_linha(row):
+       def calcular_linha(row):
             try:
                 # 1. Limpeza
                 def limpar(val):
