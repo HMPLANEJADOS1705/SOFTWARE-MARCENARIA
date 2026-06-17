@@ -65,7 +65,7 @@ elif menu == "Orçamentos":
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        # --- FUNÇÃO DE CÁLCULO ---
+       # --- FUNÇÃO DE CÁLCULO REVISADA ---
         def calculate_row(row):
             try:
                 def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
@@ -75,44 +75,49 @@ elif menu == "Orçamentos":
                 mat = str(row.get('Material', '')).strip().lower()
                 board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
                 
-                # Custo da peça (m2)
-                preco_m2 = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
+                # Preço Unitário cadastrado no sistema (Considerando ser preço por chapa se for por chapa)
+                # Se o preço no cadastro for R$ 250 (preço da chapa inteira), precisamos da área da chapa.
+                preco_base = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
+                larg_chapa = float(board_match['Largura_Chapa'].values[0]) / 1000
+                comp_chapa = float(board_match['Comprimento_Chapa'].values[0]) / 1000
+                area_chapa = larg_chapa * comp_chapa
+                
+                # Cálculo: (Preço da Chapa / Área da Chapa) = Preço por m²
+                preco_m2 = preco_base / area_chapa
                 cost_mat = area_m2 * preco_m2
                 
-                # Fitas (por metro linear)
+                # Fitas
                 tape = str(row.get('Fita_Usada', '')).strip().lower()
                 tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
                 cost_tape = 0.0
+                metragem_fita = 0.0
                 if not tape_match.empty:
                     p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1'): cost_tape += (l/1000) * p_tape
-                    if row.get('C2'): cost_tape += (l/1000) * p_tape
-                    if row.get('L1'): cost_tape += (w/1000) * p_tape
-                    if row.get('L2'): cost_tape += (w/1000) * p_tape
+                    if row.get('C1'): metragem_fita += (l/1000); cost_tape += (l/1000) * p_tape
+                    if row.get('C2'): metragem_fita += (l/1000); cost_tape += (l/1000) * p_tape
+                    if row.get('L1'): metragem_fita += (w/1000); cost_tape += (w/1000) * p_tape
+                    if row.get('L2'): metragem_fita += (w/1000); cost_tape += (w/1000) * p_tape
                     
-                return pd.Series([cost_mat, cost_tape, area_m2])
-            except: return pd.Series([0.0, 0.0, 0.0])
+                return pd.Series([cost_mat, cost_tape, area_m2, metragem_fita])
+            except: return pd.Series([0.0, 0.0, 0.0, 0.0])
 
-        df[['Custo_MDF', 'Custo_Fita', 'Area_M2']] = df.apply(calculate_row, axis=1)
+        df[['Custo_MDF', 'Custo_Fita', 'Area_M2', 'Metros_Fita']] = df.apply(calculate_row, axis=1)
         
-        # --- RELATÓRIO RESUMIDO (O QUE VOCÊ PEDIU) ---
+        # --- RELATÓRIO DE INSUMOS ---
         st.subheader("📋 Relatório de Insumos")
-        col1, col2 = st.columns(2)
         
         total_m2 = df['Area_M2'].sum()
         total_mdf = df['Custo_MDF'].sum()
         total_fita = df['Custo_Fita'].sum()
+        total_metros_fita = df['Metros_Fita'].sum()
         
-        col1.metric("Área Total (m²)", f"{total_m2:.2f} m²")
-        col2.metric("Total MDF", f"R$ {total_mdf:,.2f}")
-        st.metric("Total Fitas", f"R$ {total_fita:,.2f}")
+        # Obter preço unitário médio da fita para o relatório
+        preco_unit_fita = total_fita / total_metros_fita if total_metros_fita > 0 else 0
         
-        # --- CÁLCULO FINAL ---
-        custo_materiais_fita = total_mdf + total_fita
-        valor_final = custo_materiais_fita * (1 + taxa_lucro)
-        
-        st.markdown("---")
-        st.metric("Total do Projeto com Lucro", f"R$ {valor_final:,.2f}")
+        c1, c2 = st.columns(2)
+        c1.metric("MDF Utilizado", f"{total_m2:.2f} m²", f"Custo: R$ {total_mdf:,.2f}")
+        c2.metric("Fita Utilizada", f"{total_metros_fita:.2f} m", f"Custo: R$ {total_fita:,.2f}")
+        st.write(f"**Valor Unitário da Fita:** R$ {preco_unit_fita:.2f}/m")
         
         # Exibe a tabela detalhada
         st.subheader("Detalhe por Peça")
