@@ -54,6 +54,7 @@ elif menu == "Mapa de Corte":
             "Fita_Usada": st.column_config.SelectboxColumn("Fita_Usada", options=tapes)
         }, use_container_width=True)
 
+ # --- ABA ORÇAMENTOS (LÓGICA PRECISA) ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
@@ -66,16 +67,32 @@ elif menu == "Orçamentos":
                 def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
                 l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
                 area_m2 = (l * w) / 1000000
-                mat = str(row.get('Material', '')).strip().lower()
-                board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
-                preco_m2 = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
-                cost_mat = area_m2 * preco_m2
                 
+                mat = str(row.get('Material', '')).strip().lower()
+                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
+                
+                if not b_match.empty:
+                    p_chapa = float(b_match['Preço_Unit'].values[0])
+                    l_c = float(b_match['Largura_Chapa'].values[0]) / 1000
+                    c_c = float(b_match['Comprimento_Chapa'].values[0]) / 1000
+                    area_chapa = l_c * c_c
+                    
+                    # Se Área Utilizada: preço por m2 * area da peca
+                    if forma_cobranca == "Área Utilizada":
+                        cost_mat = area_m2 * (p_chapa / area_chapa)
+                    else:
+                        # Se Chapa Inteira, o custo da peça na linha é zero 
+                        # (o valor da chapa será somado no total final)
+                        cost_mat = 0.0 
+                else:
+                    cost_mat = 0.0
+
+                # Cálculo de Fita (mantido igual)
                 tape = str(row.get('Fita_Usada', '')).strip().lower()
-                tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+                t_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
                 cost_tape, m_fita = 0.0, 0.0
-                if not tape_match.empty:
-                    p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
+                if not t_match.empty:
+                    p_tape = float(t_match['Custo Total Aplicado (m)'].values[0])
                     if row.get('C1'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
                     if row.get('C2'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
                     if row.get('L1'): m_fita += (w/1000); cost_tape += (w/1000) * p_tape
@@ -85,6 +102,21 @@ elif menu == "Orçamentos":
 
         df[['Custo_MDF', 'Custo_Fita', 'Area_M2', 'Metros_Fita']] = df.apply(calculate_row, axis=1)
         
+        # --- CÁLCULO FINAL DIFERENCIADO ---
+        total_fita = df['Custo_Fita'].sum()
+        if forma_cobranca == "Chapa Inteira":
+            # Soma o preço das chapas únicas utilizadas no projeto
+            materiais_unicos = df['Material'].unique()
+            custo_mdf_total = 0
+            for mat in materiais_unicos:
+                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == str(mat).lower()]
+                if not b_match.empty: custo_mdf_total += float(b_match['Preço_Unit'].values[0])
+        else:
+            custo_mdf_total = df['Custo_MDF'].sum()
+            
+        valor_final = (custo_mdf_total + total_fita) * (1 + taxa_lucro)
+        
+        # ... (exibição de resultados)       
         # --- RELATÓRIO DETALHADO ---
         total_mdf = df['Custo_MDF'].sum()
         total_fita = df['Custo_Fita'].sum()
