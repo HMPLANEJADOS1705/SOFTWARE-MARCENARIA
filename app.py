@@ -69,6 +69,7 @@ elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
         df = st.session_state.df_projeto.copy()
+        
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
@@ -77,8 +78,7 @@ elif menu == "Orçamentos":
             try:
                 def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
                 l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
-                qtd = clean(row.get('Quantidade', 1))
-                area_m2 = (l * w * qtd) / 1000000
+                area_m2 = (l * w) / 1000000
                 
                 mat = str(row.get('Material', '')).strip().lower()
                 board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
@@ -91,10 +91,10 @@ elif menu == "Orçamentos":
                 if not t_match.empty:
                     p_tape = float(t_match['Custo Total Aplicado (m)'].values[0])
                     # Soma se a borda estiver marcada
-                    if row.get('C1'): m_fita += (l/1000)*qtd; cost_tape += (l/1000)*qtd * p_tape
-                    if row.get('C2'): m_fita += (l/1000)*qtd; cost_tape += (l/1000)*qtd * p_tape
-                    if row.get('L1'): m_fita += (w/1000)*qtd; cost_tape += (w/1000)*qtd * p_tape
-                    if row.get('L2'): m_fita += (w/1000)*qtd; cost_tape += (w/1000)*qtd * p_tape
+                    if row.get('C1'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
+                    if row.get('C2'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
+                    if row.get('L1'): m_fita += (w/1000); cost_tape += (w/1000) * p_tape
+                    if row.get('L2'): m_fita += (w/1000); cost_tape += (w/1000) * p_tape
                 return pd.Series([cost_mat, cost_tape, area_m2, m_fita])
             except: return pd.Series([0.0, 0.0, 0.0, 0.0])
 
@@ -107,7 +107,13 @@ elif menu == "Orçamentos":
         total_metros_fita = df['Metros_Fita'].sum()
         
         if forma_cobranca == "Chapa Inteira":
-            custo_materiais = boards['Preço_Unit'].iloc[0] + total_fita if not boards.empty else 0
+            # Agora calculamos o custo real de chapas inteiras para TODOS os materiais usados
+            materiais_unicos = df[df['Area_M2'] > 0]['Material'].unique()
+            custo_base_mdf = 0
+            for mat in materiais_unicos:
+                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat.lower()]
+                if not b_match.empty: custo_base_mdf += float(b_match['Preço_Unit'].values[0])
+            custo_materiais = custo_base_mdf + total_fita
         else:
             custo_materiais = total_mdf + total_fita
         
@@ -118,49 +124,37 @@ elif menu == "Orçamentos":
         col1, col2, col3 = st.columns(3)
         col1.metric("Área Total Utilizada", f"{total_m2:.2f} m²", f"Valor do MDF: R$ {total_mdf:,.2f}", delta_color="off")
         col2.metric("Total Fita de Borda", f"{total_metros_fita:.2f} m", f"Valor Total Fita: R$ {total_fita:,.2f}", delta_color="off")
-        total_materiais = total_mdf + total_fita
         col3.metric("Total Projeto com Lucro", f"R$ {valor_final:,.2f}", f"(Materiais + Fita) + {taxa_lucro*100}%", delta_color="off")
 
-        # --- CRIAÇÃO DOS MÓDULOS DE RESUMO (AQUI É A CORREÇÃO!) ---
         st.header("📊 Resumo e Custos Detalhados")
         
-        # 1. Criação do Módulo de Resumo MDF (Tabela Esquerda)
+        # 1. Criação do Módulo de Resumo MDF (AGORA DINÂMICO!)
         st.subheader("Resumo MDF")
-        
-        # Prepara os dados para a tabela
-        if not boards.empty:
-            df_sum_mdf = pd.DataFrame({
-                "Material": [boards['Material'].iloc[0]], # Pega o primeiro material por simplicidade
-                "Unidade": ["CHAPA"],
-                "Área Chapa (m²)": [5.06], # Valor fixo do exemplo (2750x1840)
-                "Preço Unitário (Chapa)": [f"R$ {boards['Preço_Unit'].iloc[0]:,.2f}"],
-                "Qtd Chapa Necessária": ["1.00"],
-                "Custo MDF (R$)": [f"R$ {boards['Preço_Unit'].iloc[0]:,.2f}"]
-            })
-            # Exibe a tabela
-            st.table(df_sum_mdf)
+        if not df[df['Area_M2'] > 0].empty:
+            # AGRUPAMENTO POR MATERIAL: A mágica acontece aqui!
+            # O sistema soma a área e custo de todas as peças de cada material
+            df_mdf_agrupado = df.groupby('Material')[['Area_M2', 'Custo_MDF']].sum().reset_index()
+            
+            # Formatação para exibição
+            df_mdf_agrupado.columns = ['Material', 'Área Total (m²)', 'Custo (R$)']
+            df_mdf_agrupado['Área Total (m²)'] = df_mdf_agrupado['Área Total (m²)'].map('{:.2f} m²'.format)
+            df_mdf_agrupado['Custo (R$)'] = df_mdf_agrupado['Custo (R$)'].map('R$ {:,.2f}'.format)
+            
+            # Exibe a tabela com as duas linhas (6mm e 15mm)
+            st.table(df_mdf_agrupado)
         else:
-            st.write("Nenhuma chapa cadastrada no Cadastro de Insumos.")
+            st.write("Nenhuma chapa utilizada no Mapa de Corte.")
 
-        # 2. Criação do Módulo de Resumo Fita (Tabela Direita)
+        # 2. Criação do Módulo de Resumo Fita (MANTIDO DINÂMICO)
         st.subheader("Resumo Fita de Borda")
-        
-        # Prepara os dados para a tabela
-        if not tapes.empty and total_metros_fita > 0:
-            df_sum_tape = pd.DataFrame({
-                "Nome Fita": [tapes['Nome Fita'].iloc[0]], # Pega a primeira fita por simplicidade
-                "Unidade": ["m"],
-                "Metros Usados": [f"{total_metros_fita:.2f}"],
-                "Preço p/ Metro (m)": [f"R$ {tapes['Custo Total Aplicado (m)'].iloc[0]:,.2f}"],
-                "Custo Fita (R$)": [f"R$ {total_fita:,.2f}"]
-            })
-            # Exibe a tabela
-            st.table(df_sum_tape)
-        elif tapes.empty:
-            st.write("Nenhuma fita cadastrada no Cadastro de Insumos.")
+        if not df[df['Metros_Fita'] > 0].empty:
+            df_tape_agrupado = df.groupby('Fita_Usada')[['Metros_Fita', 'Custo_Fita']].sum().reset_index()
+            df_tape_agrupado.columns = ['Nome Fita', 'Metros Usados (m)', 'Custo (R$)']
+            df_tape_agrupado['Metros Usados (m)'] = df_tape_agrupado['Metros Usados (m)'].map('{:.2f} m'.format)
+            df_tape_agrupado['Custo (R$)'] = df_tape_agrupado['Custo (R$)'].map('R$ {:,.2f}'.format)
+            st.table(df_tape_agrupado)
         else:
             st.write("Nenhuma fita utilizada no Mapa de Corte.")
-
 # --- ABA 4: OTIMIZAÇÃO DE CHAPA (NOVO PASSO) ---
 elif menu == "Otimização de Chapa (Visual)":
     st.header("📐 Otimização de Chapa (Visual)")
