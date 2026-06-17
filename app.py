@@ -54,7 +54,8 @@ elif menu == "Mapa de Corte":
             "Fita_Usada": st.column_config.SelectboxColumn("Fita_Usada", options=tapes)
         }, use_container_width=True)
 
- elif menu == "Orçamentos":
+ 
+elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
         df = st.session_state.df_projeto.copy()
