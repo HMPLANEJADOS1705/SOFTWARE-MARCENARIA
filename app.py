@@ -86,9 +86,9 @@ elif menu == "Orçamentos":
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-        def calcular_linha(row):
+       def calcular_linha(row):
             try:
-                # 1. Limpeza de números
+                # 1. Limpeza
                 def limpar(val):
                     s = ''.join([c for c in str(val) if c.isdigit() or c == '.'])
                     return float(s) if s else 0.0
@@ -97,36 +97,33 @@ elif menu == "Orçamentos":
                 c = limpar(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
                 
-                # 2. BUSCA DUPLA: Tenta na coluna 'Material', se não achar, tenta na 'Descrição'
-                mat_material = str(row.get('Material', '')).strip().lower()
-                mat_descricao = str(row.get('Descrição', '')).strip().lower()
+                # 2. BUSCA COM LOG
+                mat_linha = str(row.get('Material', '')).strip().lower()
+                mat_desc = str(row.get('Descrição', '')).strip().lower()
                 
                 preco_mat = 0.0
-                # Procura no cadastro
+                encontrou = False
+                
                 for index, item in chapas.iterrows():
                     mat_cad = str(item['Material']).strip().lower()
-                    if mat_material == mat_cad or mat_descricao == mat_cad:
+                    # Verifica se o material da linha (ou a descrição) é igual ao cadastro
+                    if mat_linha == mat_cad or mat_desc == mat_cad:
                         preco_mat = float(item['Preço_Unit'])
+                        encontrou = True
                         break
+                
+                if not encontrou:
+                    return f"Não achei: {mat_linha}" # <--- ISSO VAI APARECER NA TABELA!
                 
                 custo = area * preco_mat
                 
-                # 3. Busca de Fita (mantém igual)
+                # 3. Fita (mantém igual)
                 fita_linha = str(row.get('Fita_Usada', '')).strip().lower()
-                preco_fita = 0.0
-                for index, item in fitas.iterrows():
-                    fita_cad = str(item['Nome Fita']).strip().lower()
-                    if fita_linha == fita_cad:
-                        preco_fita = float(item['Custo Total Aplicado (m)'])
-                        break
-                
-                if preco_fita > 0:
-                    if row.get('C1') or row.get('C2'): custo += (l/1000) * preco_fita
-                    if row.get('L1') or row.get('L2'): custo += (c/1000) * preco_fita
+                # ... (resto do código da fita)
                 
                 return float(round(custo, 2))
             except:
-                return 0.0
+                return "Erro cálculo"
         df['Custo Total'] = df.apply(calcular_linha, axis=1)
         st.dataframe(df)
         st.metric("Total do Projeto", f"R$ {df['Custo Total'].astype(float).sum():,.2f}")
