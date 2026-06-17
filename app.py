@@ -100,6 +100,20 @@ elif menu == "Orçamentos":
                 "(Custo MDF + Custo Fita)", 
                 delta_color="off"
             )
+            # --- TABELAS DE RESUMO DE INSUMOS ---
+        
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            st.subheader("MDF Utilizado")
+            st.write("Materiais e custos detalhados:")
+            st.table(df_sum_mdf) # df_sum_mdf deve ser criado no seu código
+
+        with c2:
+            st.subheader("Fita de Borda Utilizada")
+            st.write("Fitas e custos detalhados:")
+            st.table(df_sum_tape) # df_sum_tape deve ser criado no seu código
+            
             st.header("💰 Gerador de Orçamentos")
     
 if st.session_state.df_projeto is not None:
