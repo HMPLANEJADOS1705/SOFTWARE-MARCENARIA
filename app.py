@@ -57,48 +57,57 @@ elif menu == "Orçamentos":
         
         def calculate_row(row):
             try:
-                # Normaliza nomes para busca
-                mat_linha = str(row.get('Material', '')).strip().lower()
-                tape_linha = str(row.get('Fita_Usada', '')).strip().lower()
-                
-                # Busca material
-                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat_linha]
-                if b_match.empty: return pd.Series([0.0, 0.0, 0.0, 0.0]) # Retorna zero se não achar material
-                
-                # Cálculos básicos
-                l = float(row.get('Largura', 0))
-                w = float(row.get('Comprimento', 0))
+                def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
+                l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
                 area_m2 = (l * w) / 1000000
                 
-                # Preço MDF
-                p_base = float(b_match['Preço_Unit'].values[0])
-                l_c = float(b_match['Largura_Chapa'].values[0]) / 1000
-                c_c = float(b_match['Comprimento_Chapa'].values[0]) / 1000
-                p_m2 = p_base / (l_c * c_c)
-                c_mdf = area_m2 * p_m2
+                mat = str(row.get('Material', '')).strip().lower()
+                board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
                 
-                # Busca fita
-                t_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape_linha]
-                c_fita, m_fita = 0.0, 0.0
-                if not t_match.empty:
-                    p_tape = float(t_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1'): m_fita += (l/1000); c_fita += (l/1000) * p_tape
-                    if row.get('C2'): m_fita += (l/1000); c_fita += (l/1000) * p_tape
-                    if row.get('L1'): m_fita += (w/1000); c_fita += (w/1000) * p_tape
-                    if row.get('L2'): m_fita += (w/1000); c_fita += (w/1000) * p_tape
-                return pd.Series([c_mdf, c_fita, area_m2, m_fita])
-            except: return pd.Series([0.0, 0.0, 0.0, 0.0])
+                # CÁLCULO CORRIGIDO:
+                # 1. Tenta pegar o preço por M2 se existir no cadastro.
+                # 2. Se não, usa o Preço_Unit como base (sua lógica antiga que funcionava).
+                if not board_match.empty:
+                    preco_unit = float(board_match['Preço_Unit'].values[0])
+                    # Verifica se temos dimensões de chapa válidas para calcular m2 real
+                    l_chapa = float(board_match.get('Largura_Chapa', 2750).values[0] or 2750)
+                    c_chapa = float(board_match.get('Comprimento_Chapa', 1840).values[0] or 1840)
+                    area_chapa_m2 = (l_chapa * c_chapa) / 1000000
+                    
+                    # Custo = área da peça * (preço da chapa / área da chapa)
+                    cost_mat = area_m2 * (preco_unit / area_chapa_m2)
+                else:
+                    cost_mat = 0.0
+                
+                # Fitas (por metro linear) - MANTENDO LÓGICA FUNCIONAL
+                tape = str(row.get('Fita_Usada', '')).strip().lower()
+                tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+                cost_tape = 0.0
+                if not tape_match.empty:
+                    p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
+                    if row.get('C1'): cost_tape += (l/1000) * p_tape
+                    if row.get('C2'): cost_tape += (l/1000) * p_tape
+                    if row.get('L1'): cost_tape += (w/1000) * p_tape
+                    if row.get('L2'): cost_tape += (w/1000) * p_tape
+                    
+                return pd.Series([cost_mat, cost_tape, area_m2])
+            except Exception as e:
+                return pd.Series([0.0, 0.0, 0.0])
 
-        df[['Custo_MDF', 'Custo_Fita', 'Area_M2', 'Metros_Fita']] = df.apply(calculate_row, axis=1)
+        df[['Custo_MDF', 'Custo_Fita', 'Area_M2']] = df.apply(calculate_row, axis=1)
         
-        # Relatório de Insumos
+        # --- RELATÓRIO ---
+        st.subheader("📋 Relatório de Insumos")
+        total_m2 = df['Area_M2'].sum()
         total_mdf = df['Custo_MDF'].sum()
         total_fita = df['Custo_Fita'].sum()
-        total_final = (total_mdf + total_fita) * (1 + taxa_lucro)
         
-        st.subheader("📋 Relatório")
-        col1, col2 = st.columns(2)
-        col1.metric("MDF Total", f"R$ {total_mdf:,.2f}")
-        col2.metric("Fita Total", f"R$ {total_fita:,.2f}")
-        st.metric("Total do Projeto com Lucro", f"R$ {total_final:,.2f}")
+        c1, c2 = st.columns(2)
+        c1.metric("Área Total (m²)", f"{total_m2:.2f} m²")
+        c2.metric("Total MDF", f"R$ {total_mdf:,.2f}")
+        st.metric("Total Fitas", f"R$ {total_fita:,.2f}")
+        
+        valor_final = (total_mdf + total_fita) * (1 + taxa_lucro)
+        st.markdown("---")
+        st.metric("Total do Projeto com Lucro", f"R$ {valor_final:,.2f}")
         st.dataframe(df)
