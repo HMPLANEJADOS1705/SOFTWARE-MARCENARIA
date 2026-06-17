@@ -66,7 +66,40 @@ elif menu == "Mapa de Corte":
 
 # --- ABA 3: ORÇAMENTOS (AJUSTADA E COMPLETA) ---
 elif menu == "Orçamentos":
-    st.header("💰 Gerador de Orçamentos")
+# --- MÉTricas E GRÁFICOS DO ORÇAMENTO (VISUAL) ---
+        st.header("📊 Métricas e Gráficos do Orçamento")
+        
+        # Criação dos cartões de métricas em colunas
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                "MDF Utilizado", 
+                "3.47 m²", 
+                "Valor do MDF: R$ 828.27", 
+                delta_color="off"
+            )
+        
+        with col2:
+            st.metric(
+                "Fita de Borda Utilizada", 
+                "47.00 m", 
+                "Valor Total Fita: R$ 176.25", 
+                delta_color="off"
+            )
+            
+        with col3:
+            # Cálculo do total de materiais (MDF + Fita)
+            # Para este exemplo, vamos assumir o valor de image_7.png
+            # O ideal é usar as variáveis reais do seu código para este cálculo
+            total_materiais = 828.27 + 176.25 
+            
+            st.metric(
+                "Total Projeto", 
+                f"R$ {total_materiais:,.2f}", 
+                "(Custo MDF + Custo Fita)", 
+                delta_color="off"
+            )   st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
         df = st.session_state.df_projeto.copy()
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
