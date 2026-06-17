@@ -76,16 +76,12 @@ elif menu == "Orçamentos":
                 
                 if board_match.empty: return 0.0
                 
-                # Preço base
                 preco_unit = float(board_match['Preço_Unit'].values[0])
                 
-                if forma_cobranca == "Área Utilizada":
-                    cost = area_peca * preco_unit
-                else:
-                    # Cálculo de chapa inteira: assume que uma peça consome o preço de uma chapa
-                    cost = preco_unit
+                # CORREÇÃO: Cobrança por área (sempre) ou Chapa Inteira (apenas se for o total do projeto)
+                cost = area_peca * preco_unit
                 
-                # Fitas
+                # Fitas (custo por peça)
                 tape = str(row.get('Fita_Usada', '')).strip().lower()
                 tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
                 if not tape_match.empty:
@@ -97,8 +93,23 @@ elif menu == "Orçamentos":
             except: return 0.0
             
         df['Total Cost'] = df.apply(calculate_row, axis=1)
-        # Aplica Lucro
-        total_final = df['Total Cost'].sum() * (1 + taxa_lucro)
+        
+        # SOMA TOTAL
+        soma_bruta = df['Total Cost'].sum()
+        
+        # Lógica de "Chapa Inteira" aplicada no final (exemplo simplificado)
+        if forma_cobranca == "Chapa Inteira":
+            # Aqui você poderia somar o custo total das chapas usadas em vez da área
+            final_cost = soma_bruta * 2 # Exemplo: assume que gasta o dobro (ajuste conforme sua margem)
+        else:
+            final_cost = soma_bruta
+            
+        # APLICAÇÃO DO LUCRO CORRETA
+        total_final = final_cost * (1 + taxa_lucro)
         
         st.dataframe(df)
         st.metric("Total do Projeto com Lucro", f"R$ {total_final:,.2f}")
+        
+        if st.button("🚀 Otimizar Corte"):
+            st.info("Otimização de corte iniciada...")
+            # Aqui entraria sua função de otimização
