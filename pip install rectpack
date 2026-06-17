@@ -1,0 +1,30 @@
+from rectpack import newPacker
+
+def otimizar_corte(pecas, largura_chapa, altura_chapa):
+    # Inicializa o empacotador
+    packer = newPacker(rotation=True) # rotation=True permite girar peças se não tiver fibra
+    
+    # Adiciona a chapa
+    packer.add_bin(largura_chapa, altura_chapa)
+    
+    # Adiciona as peças
+    for peca in pecas:
+        packer.add_rect(peca['w'], peca['h'], rid=peca['id'])
+        
+    packer.pack()
+    
+    return packer.rect_list()
+
+# --- Exemplo de Uso (Teste com 15mm) ---
+chapa_15mm = {'w': 2750, 'h': 1840}
+pecas_projeto = [
+    {'id': 'P1', 'w': 1000, 'h': 500},
+    {'id': 'P2', 'w': 1200, 'h': 600},
+    {'id': 'P3', 'w': 800, 'h': 400}
+]
+
+resultado = otimizar_corte(pecas_projeto, chapa_15mm['w'], chapa_15mm['h'])
+
+for rect in resultado:
+    b, x, y, w, h, rid = rect
+    print(f"Peça {rid}: Posição (X={x}, Y={y}) | Tamanho {w}x{h}")
