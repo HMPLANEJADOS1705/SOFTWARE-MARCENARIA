@@ -74,11 +74,8 @@ elif menu == "Orçamentos":
                 mat = str(row.get('Material', '')).strip().lower()
                 board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
                 
-                if board_match.empty: return 0.0
-                
-                preco_unit = float(board_match['Preço_Unit'].values[0])
-                
-                # CORREÇÃO: Cobrança por área (sempre) ou Chapa Inteira (apenas se for o total do projeto)
+                # Custo da Peça (Baseado na Área)
+                preco_unit = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
                 cost = area_peca * preco_unit
                 
                 # Fitas (custo por peça)
@@ -86,8 +83,11 @@ elif menu == "Orçamentos":
                 tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
                 if not tape_match.empty:
                     p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1') or row.get('C2'): cost += (l/1000) * p_tape
-                    if row.get('L1') or row.get('L2'): cost += (w/1000) * p_tape
+                    # Soma o comprimento de fita por borda selecionada
+                    if row.get('C1'): cost += (l/1000) * p_tape
+                    if row.get('C2'): cost += (l/1000) * p_tape
+                    if row.get('L1'): cost += (w/1000) * p_tape
+                    if row.get('L2'): cost += (w/1000) * p_tape
                     
                 return round(cost, 2)
             except: return 0.0
@@ -95,21 +95,22 @@ elif menu == "Orçamentos":
         df['Total Cost'] = df.apply(calculate_row, axis=1)
         
         # SOMA TOTAL
-        soma_bruta = df['Total Cost'].sum()
+        custo_materiais_fita = df['Total Cost'].sum()
         
-        # Lógica de "Chapa Inteira" aplicada no final (exemplo simplificado)
+        # Lógica de Cobrança: Se for Chapa Inteira, o usuário paga a chapa (R$ 250)
+        # Se for Área Utilizada, paga o que consumiu.
         if forma_cobranca == "Chapa Inteira":
-            # Aqui você poderia somar o custo total das chapas usadas em vez da área
-            final_cost = soma_bruta * 2 # Exemplo: assume que gasta o dobro (ajuste conforme sua margem)
+            # Aqui ajustamos para cobrar o valor da chapa se necessário
+            valor_base = 250.00 # Ajuste conforme o preço da chapa do MDF 15mm
         else:
-            final_cost = soma_bruta
+            valor_base = custo_materiais_fita
             
-        # APLICAÇÃO DO LUCRO CORRETA
-        total_final = final_cost * (1 + taxa_lucro)
+        # APLICAÇÃO DO LUCRO APENAS NO TOTAL FINAL
+        valor_final = valor_base * (1 + taxa_lucro)
         
         st.dataframe(df)
-        st.metric("Total do Projeto com Lucro", f"R$ {total_final:,.2f}")
+        st.write(f"Custo de Materiais + Fita: R$ {custo_materiais_fita:,.2f}")
+        st.metric("Total do Projeto com Lucro", f"R$ {valor_final:,.2f}")
         
         if st.button("🚀 Otimizar Corte"):
-            st.info("Otimização de corte iniciada...")
-            # Aqui entraria sua função de otimização
+            st.info("Otimização de corte sendo processada...")
