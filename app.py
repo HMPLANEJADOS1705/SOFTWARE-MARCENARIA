@@ -88,36 +88,45 @@ elif menu == "Orçamentos":
         
         def calcular_linha(row):
             try:
-                # Extrai apenas números
+                # 1. Limpeza de números
                 def limpar(val):
                     s = ''.join([c for c in str(val) if c.isdigit() or c == '.'])
                     return float(s) if s else 0.0
-                
+
                 l = limpar(row.get('Largura', 0))
                 c = limpar(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
                 
-                # Busca Material
-                mat = str(row.get('Material', '')).strip().lower()
-                chapas['temp_busca'] = chapas['Material'].astype(str).str.strip().str.lower()
-                match = chapas[chapas['temp_busca'] == mat]
+                # 2. BUSCA DUPLA: Tenta na coluna 'Material', se não achar, tenta na 'Descrição'
+                mat_material = str(row.get('Material', '')).strip().lower()
+                mat_descricao = str(row.get('Descrição', '')).strip().lower()
                 
-                custo = area * (float(match['Preço_Unit'].values[0]) if not match.empty else 0.0)
+                preco_mat = 0.0
+                # Procura no cadastro
+                for index, item in chapas.iterrows():
+                    mat_cad = str(item['Material']).strip().lower()
+                    if mat_material == mat_cad or mat_descricao == mat_cad:
+                        preco_mat = float(item['Preço_Unit'])
+                        break
                 
-                # Busca Fita
-                fita = str(row.get('Fita_Usada', '')).strip().lower()
-                fitas['temp_busca'] = fitas['Nome Fita'].astype(str).str.strip().str.lower()
-                fita_match = fitas[fitas['temp_busca'] == fita]
+                custo = area * preco_mat
                 
-                if not fita_match.empty:
-                    p_fita = float(fita_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
-                    if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
+                # 3. Busca de Fita (mantém igual)
+                fita_linha = str(row.get('Fita_Usada', '')).strip().lower()
+                preco_fita = 0.0
+                for index, item in fitas.iterrows():
+                    fita_cad = str(item['Nome Fita']).strip().lower()
+                    if fita_linha == fita_cad:
+                        preco_fita = float(item['Custo Total Aplicado (m)'])
+                        break
+                
+                if preco_fita > 0:
+                    if row.get('C1') or row.get('C2'): custo += (l/1000) * preco_fita
+                    if row.get('L1') or row.get('L2'): custo += (c/1000) * preco_fita
                 
                 return float(round(custo, 2))
             except:
                 return 0.0
-
         df['Custo Total'] = df.apply(calcular_linha, axis=1)
         st.dataframe(df)
         st.metric("Total do Projeto", f"R$ {df['Custo Total'].astype(float).sum():,.2f}")
