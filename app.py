@@ -66,7 +66,7 @@ elif menu == "Orçamentos":
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
        # --- FUNÇÃO DE CÁLCULO REVISADA ---
-       def calculate_row(row):
+    def calculate_row(row):
             # 1. Limpeza básica dos dados
             def clean(v): 
                 try: return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
