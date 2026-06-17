@@ -72,49 +72,56 @@ elif menu == "Mapa de Corte":
         if st.button("✅ Confirmar e Salvar"):
             st.session_state.df_projeto = temp_df
             st.success("Dados salvos!")
+# --- ABA 3: ORÇAMENTOS (BLOCO DE DIAGNÓSTICO) ---
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
-    if st.session_state.df_projeto is not None:
+    
+    # Verifica se existe algo na memória
+    if st.session_state.df_projeto is not None and not st.session_state.df_projeto.empty:
+        st.write("Dados carregados com sucesso!") # Isso vai aparecer se o DF existir
+        
         df = st.session_state.df_projeto.copy()
+        
+        # Carrega insumos
         chapas = carregar_csv("materiais.csv", ['Material', 'Preço_Unit'])
         fitas = carregar_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
-   # Adicione esta importação no topo do arquivo se não existir:
-        # from difflib import get_close_matches
-
         def calcular_linha(row):
             try:
-                # Limpeza simples
+                # Extrai apenas números
                 def limpar(val):
                     s = ''.join([c for c in str(val) if c.isdigit() or c == '.'])
                     return float(s) if s else 0.0
-
+                
                 l = limpar(row.get('Largura', 0))
                 c = limpar(row.get('Comprimento', 0))
                 area = (l * c) / 1000000
                 
-                # BUSCA INTELIGENTE (Aproximação)
-                mat_mapa = str(row.get('Material', '')).strip()
-                lista_materiais = chapas['Material'].astype(str).tolist()
+                # Busca Material
+                mat = str(row.get('Material', '')).strip().lower()
+                chapas['temp_busca'] = chapas['Material'].astype(str).str.strip().str.lower()
+                match = chapas[chapas['temp_busca'] == mat]
                 
-                # Tenta encontrar o material mais parecido na lista
-                match = get_close_matches(mat_mapa, lista_materiais, n=1, cutoff=0.6)
+                custo = area * (float(match['Preço_Unit'].values[0]) if not match.empty else 0.0)
                 
-                custo = 0.0
-                if match:
-                    preco = chapas[chapas['Material'] == match[0]]['Preço_Unit'].values[0]
-                    custo = area * float(preco)
+                # Busca Fita
+                fita = str(row.get('Fita_Usada', '')).strip().lower()
+                fitas['temp_busca'] = fitas['Nome Fita'].astype(str).str.strip().str.lower()
+                fita_match = fitas[fitas['temp_busca'] == fita]
                 
-                # Mesma lógica para Fita
-                fita = str(row.get('Fita_Usada', '')).strip()
-                lista_fitas = fitas['Nome Fita'].astype(str).tolist()
-                fita_match = get_close_matches(fita, lista_fitas, n=1, cutoff=0.6)
-                
-                if fita_match:
-                    p_fita = float(fitas[fitas['Nome Fita'] == fita_match[0]]['Custo Total Aplicado (m)'].values[0])
+                if not fita_match.empty:
+                    p_fita = float(fita_match['Custo Total Aplicado (m)'].values[0])
                     if row.get('C1') or row.get('C2'): custo += (l/1000) * p_fita
                     if row.get('L1') or row.get('L2'): custo += (c/1000) * p_fita
                 
                 return float(round(custo, 2))
-            except Exception:
+            except:
                 return 0.0
+
+        df['Custo Total'] = df.apply(calcular_linha, axis=1)
+        st.dataframe(df)
+        st.metric("Total do Projeto", f"R$ {df['Custo Total'].astype(float).sum():,.2f}")
+        
+    else:
+        st.warning("⚠️ A memória do projeto está vazia.")
+        st.write("Verifique se você clicou em 'Confirmar e Salvar' na aba Mapa de Corte.")
