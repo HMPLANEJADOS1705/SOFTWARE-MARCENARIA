@@ -66,40 +66,51 @@ elif menu == "Orçamentos":
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
        # --- FUNÇÃO DE CÁLCULO REVISADA ---
-        def calculate_row(row):
+       def calculate_row(row):
+            # 1. Limpeza básica dos dados
+            def clean(v): 
+                try: return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
+                except: return 0.0
+            
             try:
-                def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
                 l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
                 area_m2 = (l * w) / 1000000
                 
-                mat = str(row.get('Material', '')).strip().lower()
-                board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
+                # 2. Busca do Material
+                mat_linha = str(row.get('Material', '')).strip().lower()
+                # Remove espaços extras do cadastro para comparação
+                boards['Material_Clean'] = boards['Material'].astype(str).str.strip().str.lower()
+                board_match = boards[boards['Material_Clean'] == mat_linha]
                 
-                # Preço Unitário cadastrado no sistema (Considerando ser preço por chapa se for por chapa)
-                # Se o preço no cadastro for R$ 250 (preço da chapa inteira), precisamos da área da chapa.
-                preco_base = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
+                if board_match.empty:
+                    return pd.Series([0.0, 0.0, area_m2, 0.0]) # Material não achado
+                
+                preco_base = float(board_match['Preço_Unit'].values[0])
                 larg_chapa = float(board_match['Largura_Chapa'].values[0]) / 1000
                 comp_chapa = float(board_match['Comprimento_Chapa'].values[0]) / 1000
                 area_chapa = larg_chapa * comp_chapa
                 
-                # Cálculo: (Preço da Chapa / Área da Chapa) = Preço por m²
                 preco_m2 = preco_base / area_chapa
                 cost_mat = area_m2 * preco_m2
                 
-                # Fitas
+                # 3. Fitas
                 tape = str(row.get('Fita_Usada', '')).strip().lower()
-                tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+                tapes['Fita_Clean'] = tapes['Nome Fita'].astype(str).str.strip().str.lower()
+                tape_match = tapes[tapes['Fita_Clean'] == tape]
+                
                 cost_tape = 0.0
                 metragem_fita = 0.0
                 if not tape_match.empty:
                     p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
+                    # Verifica checkboxes (True ou False)
                     if row.get('C1'): metragem_fita += (l/1000); cost_tape += (l/1000) * p_tape
                     if row.get('C2'): metragem_fita += (l/1000); cost_tape += (l/1000) * p_tape
                     if row.get('L1'): metragem_fita += (w/1000); cost_tape += (w/1000) * p_tape
                     if row.get('L2'): metragem_fita += (w/1000); cost_tape += (w/1000) * p_tape
                     
                 return pd.Series([cost_mat, cost_tape, area_m2, metragem_fita])
-            except: return pd.Series([0.0, 0.0, 0.0, 0.0])
+            except Exception as e:
+                return pd.Series([0.0, 0.0, 0.0, 0.0])
 
         df[['Custo_MDF', 'Custo_Fita', 'Area_M2', 'Metros_Fita']] = df.apply(calculate_row, axis=1)
         
