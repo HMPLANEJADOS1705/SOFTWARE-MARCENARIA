@@ -27,12 +27,11 @@ if menu == "Cadastro de Insumos":
         df_fitas.to_csv("fitas.csv", index=False)
         st.success("Salvo!")
 
-# --- ABA 2: MAPA DE CORTE (VERSÃO CORRIGIDA E ROBUSTA) ---
+# --- ABA 2: MAPA DE CORTE (SUBSTITUA ESTE BLOCO) ---
 elif menu == "Mapa de Corte":
     st.header("🗺️ Mapa de Corte")
     
-    # Botão para limpar a memória se algo der errado
-    if st.button("🔄 Reiniciar/Limpar Projeto"):
+    if st.button("🔄 Reiniciar/Limpar"):
         st.session_state.df_projeto = None
         st.rerun()
 
@@ -41,33 +40,38 @@ elif menu == "Mapa de Corte":
         if arquivo:
             df = pd.read_csv(arquivo, sep=';')
             df = df.rename(columns={"Part #": "Código", "Thickness(T)": "Material", "Width(W)": "Largura", "Length(L)": "Comprimento", "Description": "Descrição"})
-            # Garante que as colunas de fita existam ao carregar
+            
+            # FORÇAR CRIAÇÃO DAS COLUNAS FALTANTES
             df['Fita_Usada'] = ""
-            df['C1'] = False; df['C2'] = False; df['L1'] = False; df['L2'] = False
+            df['C1'] = False
+            df['C2'] = False
+            df['L1'] = False
+            df['L2'] = False
+            
             st.session_state.df_projeto = df
             st.rerun()
     
     if st.session_state.df_projeto is not None:
-        # Carrega insumos para o Selectbox
         lista_mat = carregar_csv("materiais.csv", ['Material'])['Material'].unique().tolist()
         lista_fitas = carregar_csv("fitas.csv", ['Nome Fita'])['Nome Fita'].unique().tolist()
         
-        # Garante que as colunas essenciais existam
-        if 'Fita_Usada' not in st.session_state.df_projeto.columns: st.session_state.df_projeto['Fita_Usada'] = ""
+        # Garante que existam mesmo se o usuário carregou o arquivo antes
+        for col in ['Fita_Usada', 'C1', 'C2', 'L1', 'L2']:
+            if col not in st.session_state.df_projeto.columns:
+                st.session_state.df_projeto[col] = False if 'C' in col or 'L' in col else ""
         
-        # Editor
         temp_df = st.data_editor(st.session_state.df_projeto, key="tabela_corte", num_rows="dynamic", column_config={
             "Material": st.column_config.SelectboxColumn(options=lista_mat),
             "Fita_Usada": st.column_config.SelectboxColumn(options=lista_fitas),
-            "C1": st.column_config.CheckboxColumn(),
-            "C2": st.column_config.CheckboxColumn(),
-            "L1": st.column_config.CheckboxColumn(),
-            "L2": st.column_config.CheckboxColumn()
+            "C1": st.column_config.CheckboxColumn("C1"),
+            "C2": st.column_config.CheckboxColumn("C2"),
+            "L1": st.column_config.CheckboxColumn("L1"),
+            "L2": st.column_config.CheckboxColumn("L2")
         }, use_container_width=True)
         
         if st.button("✅ Confirmar e Salvar"):
             st.session_state.df_projeto = temp_df
-            st.success("Dados salvos no mapa de corte!")
+            st.success("Dados salvos!")
 elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
