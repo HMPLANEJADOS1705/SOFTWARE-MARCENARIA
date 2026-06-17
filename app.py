@@ -65,52 +65,55 @@ elif menu == "Orçamentos":
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
+        # --- FUNÇÃO DE CÁLCULO ---
         def calculate_row(row):
             try:
                 def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
                 l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
-                area_peca = (l * w) / 1000000
+                area_m2 = (l * w) / 1000000
                 
                 mat = str(row.get('Material', '')).strip().lower()
                 board_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
                 
-                # Custo da Peça (Baseado na Área)
-                preco_unit = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
-                cost = area_peca * preco_unit
+                # Custo da peça (m2)
+                preco_m2 = float(board_match['Preço_Unit'].values[0]) if not board_match.empty else 0.0
+                cost_mat = area_m2 * preco_m2
                 
-                # Fitas (custo por peça)
+                # Fitas (por metro linear)
                 tape = str(row.get('Fita_Usada', '')).strip().lower()
                 tape_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+                cost_tape = 0.0
                 if not tape_match.empty:
                     p_tape = float(tape_match['Custo Total Aplicado (m)'].values[0])
-                    # Soma o comprimento de fita por borda selecionada
-                    if row.get('C1'): cost += (l/1000) * p_tape
-                    if row.get('C2'): cost += (l/1000) * p_tape
-                    if row.get('L1'): cost += (w/1000) * p_tape
-                    if row.get('L2'): cost += (w/1000) * p_tape
+                    if row.get('C1'): cost_tape += (l/1000) * p_tape
+                    if row.get('C2'): cost_tape += (l/1000) * p_tape
+                    if row.get('L1'): cost_tape += (w/1000) * p_tape
+                    if row.get('L2'): cost_tape += (w/1000) * p_tape
                     
-                return round(cost, 2)
-            except: return 0.0
-            
-        df['Total Cost'] = df.apply(calculate_row, axis=1)
+                return pd.Series([cost_mat, cost_tape, area_m2])
+            except: return pd.Series([0.0, 0.0, 0.0])
+
+        df[['Custo_MDF', 'Custo_Fita', 'Area_M2']] = df.apply(calculate_row, axis=1)
         
-        # SOMA TOTAL
-        custo_materiais_fita = df['Total Cost'].sum()
+        # --- RELATÓRIO RESUMIDO (O QUE VOCÊ PEDIU) ---
+        st.subheader("📋 Relatório de Insumos")
+        col1, col2 = st.columns(2)
         
-        # Lógica de Cobrança: Se for Chapa Inteira, o usuário paga a chapa (R$ 250)
-        # Se for Área Utilizada, paga o que consumiu.
-        if forma_cobranca == "Chapa Inteira":
-            # Aqui ajustamos para cobrar o valor da chapa se necessário
-            valor_base = 250.00 # Ajuste conforme o preço da chapa do MDF 15mm
-        else:
-            valor_base = custo_materiais_fita
-            
-        # APLICAÇÃO DO LUCRO APENAS NO TOTAL FINAL
-        valor_final = valor_base * (1 + taxa_lucro)
+        total_m2 = df['Area_M2'].sum()
+        total_mdf = df['Custo_MDF'].sum()
+        total_fita = df['Custo_Fita'].sum()
         
-        st.dataframe(df)
-        st.write(f"Custo de Materiais + Fita: R$ {custo_materiais_fita:,.2f}")
+        col1.metric("Área Total (m²)", f"{total_m2:.2f} m²")
+        col2.metric("Total MDF", f"R$ {total_mdf:,.2f}")
+        st.metric("Total Fitas", f"R$ {total_fita:,.2f}")
+        
+        # --- CÁLCULO FINAL ---
+        custo_materiais_fita = total_mdf + total_fita
+        valor_final = custo_materiais_fita * (1 + taxa_lucro)
+        
+        st.markdown("---")
         st.metric("Total do Projeto com Lucro", f"R$ {valor_final:,.2f}")
         
-        if st.button("🚀 Otimizar Corte"):
-            st.info("Otimização de corte sendo processada...")
+        # Exibe a tabela detalhada
+        st.subheader("Detalhe por Peça")
+        st.dataframe(df)
