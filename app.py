@@ -99,7 +99,8 @@ elif menu == "Orçamentos":
                 f"R$ {total_materiais:,.2f}", 
                 "(Custo MDF + Custo Fita)", 
                 delta_color="off"
-            )   st.header("💰 Gerador de Orçamentos")
+            )
+            st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
         df = st.session_state.df_projeto.copy()
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
