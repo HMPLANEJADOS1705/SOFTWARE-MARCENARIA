@@ -54,61 +54,62 @@ elif menu == "Mapa de Corte":
             "Fita_Usada": st.column_config.SelectboxColumn("Fita_Usada", options=tapes)
         }, use_container_width=True)
 
- # --- ABA ORÇAMENTOS (LÓGICA PRECISA) ---
-elif menu == "Orçamentos":
+ elif menu == "Orçamentos":
     st.header("💰 Gerador de Orçamentos")
     if st.session_state.df_projeto is not None:
         df = st.session_state.df_projeto.copy()
+        
+        # Carrega os dados com os nomes de colunas que estão na sua foto
         boards = load_csv("materiais.csv", ['Material', 'Preço_Unit', 'Largura_Chapa', 'Comprimento_Chapa'])
         tapes = load_csv("fitas.csv", ['Nome Fita', 'Custo Total Aplicado (m)'])
         
         def calculate_row(row):
             try:
-                def clean(v): return float(''.join([c for c in str(v) if c.isdigit() or c == '.']))
+                # Limpeza robusta de dados
+                def clean(v): 
+                    s = str(v).replace(',', '.')
+                    return float(''.join([c for c in s if c.isdigit() or c == '.']))
+                
                 l, w = clean(row.get('Largura', 0)), clean(row.get('Comprimento', 0))
-                area_m2 = (l * w) / 1000000
+                qtd = clean(row.get('Copies', 1))
+                area_m2 = (l * w * qtd) / 1000000
                 
-                mat = str(row.get('Material', '')).strip().lower()
-                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat]
+                # Busca material ignorando maiúsculas/minúsculas e espaços
+                mat_nome = str(row.get('Material', '')).strip().lower()
+                b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == mat_nome]
                 
-                if not b_match.empty:
+                cost_mat = 0.0
+                if not b_match.empty and forma_cobranca == "Área Utilizada":
                     p_chapa = float(b_match['Preço_Unit'].values[0])
+                    # Calcula área da chapa em m2 (usando Largura_Chapa e Comprimento_Chapa do seu CSV)
                     l_c = float(b_match['Largura_Chapa'].values[0]) / 1000
                     c_c = float(b_match['Comprimento_Chapa'].values[0]) / 1000
                     area_chapa = l_c * c_c
-                    
-                    # Se Área Utilizada: preço por m2 * area da peca
-                    if forma_cobranca == "Área Utilizada":
-                        cost_mat = area_m2 * (p_chapa / area_chapa)
-                    else:
-                        # Se Chapa Inteira, o custo da peça na linha é zero 
-                        # (o valor da chapa será somado no total final)
-                        cost_mat = 0.0 
-                else:
-                    cost_mat = 0.0
+                    cost_mat = area_m2 * (p_chapa / area_chapa)
 
-                # Cálculo de Fita (mantido igual)
-                tape = str(row.get('Fita_Usada', '')).strip().lower()
-                t_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape]
+                # Cálculo de Fita (Mantido como estava)
+                tape_nome = str(row.get('Fita_Usada', '')).strip().lower()
+                t_match = tapes[tapes['Nome Fita'].astype(str).str.strip().str.lower() == tape_nome]
                 cost_tape, m_fita = 0.0, 0.0
                 if not t_match.empty:
                     p_tape = float(t_match['Custo Total Aplicado (m)'].values[0])
-                    if row.get('C1'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
-                    if row.get('C2'): m_fita += (l/1000); cost_tape += (l/1000) * p_tape
-                    if row.get('L1'): m_fita += (w/1000); cost_tape += (w/1000) * p_tape
-                    if row.get('L2'): m_fita += (w/1000); cost_tape += (w/1000) * p_tape
+                    if row.get('C1'): m_fita += (l/1000)*qtd; cost_tape += (l/1000)*qtd * p_tape
+                    if row.get('C2'): m_fita += (l/1000)*qtd; cost_tape += (l/1000)*qtd * p_tape
+                    if row.get('L1'): m_fita += (w/1000)*qtd; cost_tape += (w/1000)*qtd * p_tape
+                    if row.get('L2'): m_fita += (w/1000)*qtd; cost_tape += (w/1000)*qtd * p_tape
+                
                 return pd.Series([cost_mat, cost_tape, area_m2, m_fita])
-            except: return pd.Series([0.0, 0.0, 0.0, 0.0])
+            except Exception: return pd.Series([0.0, 0.0, 0.0, 0.0])
 
         df[['Custo_MDF', 'Custo_Fita', 'Area_M2', 'Metros_Fita']] = df.apply(calculate_row, axis=1)
         
-        # --- CÁLCULO FINAL DIFERENCIADO ---
+        # --- CÁLCULO FINAL ---
         total_fita = df['Custo_Fita'].sum()
         if forma_cobranca == "Chapa Inteira":
-            # Soma o preço das chapas únicas utilizadas no projeto
-            materiais_unicos = df['Material'].unique()
+            # Soma valor de chapas únicas necessárias
+            mats_usados = df['Material'].unique()
             custo_mdf_total = 0
-            for mat in materiais_unicos:
+            for mat in mats_usados:
                 b_match = boards[boards['Material'].astype(str).str.strip().str.lower() == str(mat).lower()]
                 if not b_match.empty: custo_mdf_total += float(b_match['Preço_Unit'].values[0])
         else:
@@ -116,21 +117,6 @@ elif menu == "Orçamentos":
             
         valor_final = (custo_mdf_total + total_fita) * (1 + taxa_lucro)
         
-        # ... (exibição de resultados)       
-        # --- RELATÓRIO DETALHADO ---
-        total_mdf = df['Custo_MDF'].sum()
-        total_fita = df['Custo_Fita'].sum()
-        total_m2 = df['Area_M2'].sum()
-        total_metros_fita = df['Metros_Fita'].sum()
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Área Total", f"{total_m2:.2f} m²", f"Custo MDF: R$ {total_mdf:,.2f}")
-        c2.metric("Total Fita", f"{total_metros_fita:.2f} m", f"Custo Fita: R$ {total_fita:,.2f}")
-        
-        # LÓGICA DE COBRANÇA (CHAPA INTEIRA OU ÁREA)
-        custo_base = boards['Preço_Unit'].iloc[0] if forma_cobranca == "Chapa Inteira" and not boards.empty else total_mdf
-        valor_final = (custo_base + total_fita) * (1 + taxa_lucro)
-        
-        st.markdown("---")
+        # Exibição
         st.metric("Total do Projeto com Lucro", f"R$ {valor_final:,.2f}")
         st.dataframe(df)
