@@ -117,3 +117,17 @@ elif menu == "Orçamentos":
         # Exibe a tabela detalhada
         st.subheader("Detalhe por Peça")
         st.dataframe(df)
+        # --- RELATÓRIO DE INSUMOS (SEGURO) ---
+        st.subheader("📋 Relatório de Insumos")
+        
+        # Como o df já tem a coluna 'Total Cost' e o Material, 
+        # podemos agrupar para mostrar os totais por tipo de material
+        resumo = df.groupby('Material')['Total Cost'].sum().reset_index()
+        resumo.columns = ['Material', 'Custo Total']
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Custo Total Materiais", f"R$ {df['Total Cost'].sum():,.2f}")
+        col2.metric("Total com Lucro", f"R$ {df['Total Cost'].sum() * (1 + taxa_lucro):,.2f}")
+        
+        st.write("Custo detalhado por material:")
+        st.table(resumo)
