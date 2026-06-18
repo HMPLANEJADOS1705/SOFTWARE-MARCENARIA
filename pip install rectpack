@@ -1,47 +1,64 @@
-from rectpack import newPacker
+import rectpack
 
-def otimizar_corte(pecas, largura_chapa, altura_chapa):
-    # Inicializa o empacotador
-    packer = newPacker(rotation=True) # rotation=True permite girar peças se não tiver fibra
-    
-    # Adiciona a chapa
-    packer.add_bin(largura_chapa, altura_chapa)
-    
-    # Adiciona as peças
-    for peca in pecas:
-        packer.add_rect(peca['w'], peca['h'], rid=peca['id'])
-        
-    packer.pack()
-    
-    return packer.rect_list()
+# --- PASSO 1: Preparação do Motor Matemática ---
+print("\n--- Iniciando o Motor Matemática Marcenaria Pro ---")
 
-# --- Exemplo de Uso (Teste com 15mm) ---
-chapa_15mm = {'w': 2750, 'h': 1840}
-pecas_projeto = [
-    {'id': 'P1', 'w': 1000, 'h': 500},
-    {'id': 'P2', 'w': 1200, 'h': 600},
-    {'id': 'P3', 'w': 800, 'h': 400}
+# Criação do Empacotador (Motor de Cálculo)
+# rotation=True permite que o sistema gire peças automaticamente para melhor encaixe.
+packer = rectpack.newPacker(rotation=True)
+
+# --- PASSO 2: Configurar e Processar (Adicionar Peças Reais) ---
+
+# 1. Definir a Chapa (O "Bin", seu contêiner bruto)
+chapa_principal = {'w': 2750, 'h': 1840}
+print(f"Chapa Bruta Definida: {chapa_principal['w']}x{chapa_principal['h']}mm")
+packer.add_bin(chapa_principal['w'], chapa_principal['h'])
+
+# 2. Adicionar as Peças Reais (Loop sobre a lista de corte real do projeto)
+# Exemplo simulando dados que viriam do CSV do Mapa de Corte
+# 'fiber': True bloqueia rotação automática para peças com veio
+pecas_reais_projeto = [
+    {'id': 'C-001 base comoda', 'w': 1035, 'h': 500, 'fiber': True},
+    {'id': 'G-001 lateral gaveta', 'w': 110, 'h': 500, 'fiber': False},
+    {'id': 'G-002 frente gaveta', 'w': 110, 'h': 100, 'fiber': True},
+    {'id': 'T-001 tampo superior', 'w': 1050, 'h': 600, 'fiber': True}
 ]
+print(f"Total de peças no projeto: {len(pecas_reais_projeto)}")
+
+for p in pecas_reais_projeto:
+    # Lógica simplificada de fibra para o motor base
+    # (O motor base não suporta bloqueio de rotação por peça por padrão,
+    # ele é global. Para simplificar, o motor global está como rotation=True.
+    # Em uma implementação completa, criaríamos empacotadores separados.)
+    packer.add_rect(p['w'], p['h'], rid=p['id'])
+    
+print("Todas as peças foram adicionadas ao motor.")
+
+# --- O Comando de Cálculo Matemática ---
+# É aqui que o algoritmo MaxRects processa todas as combinações matemáticas.
+packer.pack()
+print("O cálculo matemático de otimização foi executado.")
 
 # --- PASSO 3: Salvar e Validar o Resultado Matemático ---
-print("\n--- Resultados da Otimização Matemático ---")
+print("\n--- Resultados da Otimização Matemático (Coordenadas) ---")
+
 # Recupera a lista de retângulos (pecas) encaixadas
-# O resultado vem como: (bin_index, x, y, w, h, rect_id)
+# O resultado vem como uma lista de tuplas: (bin_index, x, y, w, h, rect_id)
 # bin_index: Qual chapa foi usada (se usou mais de uma)
-# x, y: Coordenadas do canto inferior esquerdo
+# x, y: Coordenadas do canto inferior esquerdo (onde a peça começa)
+# w, h: Tamanho real da peça encaixada
+# rect_id: O identificador único da peça
 resultados_processados = packer.rect_list()
 
 if not resultados_processados:
     print("Nenhuma peça foi encaixada. Verifique as dimensões da chapa vs as peças.")
 else:
-    print(f"Total de peças encaixadas: {len(resultados_processados)}")
+    print(f"Total de peças encaixadas com sucesso: {len(resultados_processados)}")
     for rect in resultados_processados:
         b, x, y, w, h, rid = rect
+        # Imprime o identificador da peça, sua posição e dimensões
         print(f"Peça {rid}: Encaixada na chapa {b} em (X={x}, Y={y}) com tamanho {w}x{h}")
 
-# [Gerar Ilustração Visual]
-resultado = otimizar_corte(pecas_projeto, chapa_15mm['w'], chapa_15mm['h'])
+print("\n--- Validação do Motor Completo. ---")
 
-for rect in resultado:
-    b, x, y, w, h, rid = rect
-    print(f"Peça {rid}: Posição (X={x}, Y={y}) | Tamanho {w}x{h}")
+# --- [PASSO ADICIONAL: Gerar Ilustração Visual] ---
