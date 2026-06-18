@@ -23,6 +23,23 @@ pecas_projeto = [
     {'id': 'P3', 'w': 800, 'h': 400}
 ]
 
+# --- PASSO 3: Salvar e Validar o Resultado Matemático ---
+print("\n--- Resultados da Otimização Matemático ---")
+# Recupera a lista de retângulos (pecas) encaixadas
+# O resultado vem como: (bin_index, x, y, w, h, rect_id)
+# bin_index: Qual chapa foi usada (se usou mais de uma)
+# x, y: Coordenadas do canto inferior esquerdo
+resultados_processados = packer.rect_list()
+
+if not resultados_processados:
+    print("Nenhuma peça foi encaixada. Verifique as dimensões da chapa vs as peças.")
+else:
+    print(f"Total de peças encaixadas: {len(resultados_processados)}")
+    for rect in resultados_processados:
+        b, x, y, w, h, rid = rect
+        print(f"Peça {rid}: Encaixada na chapa {b} em (X={x}, Y={y}) com tamanho {w}x{h}")
+
+# [Gerar Ilustração Visual]
 resultado = otimizar_corte(pecas_projeto, chapa_15mm['w'], chapa_15mm['h'])
 
 for rect in resultado:
